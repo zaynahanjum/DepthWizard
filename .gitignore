@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+data/uploads/
+outputs/
+*.pth
+*.pt
+unity/Library/
+unity/Temp/
+unity/Logs/
+unity/obj/
+unity/Builds/
+node_modules/
