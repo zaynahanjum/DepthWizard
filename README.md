@@ -6,7 +6,7 @@
 **Guide:** Dr. Joyline Dsa
 **Dept:** Computer Science and Engineering, Sahyadri College of Engineering and Management
 
->  **This README is a living document.** Anyone on the team can edit it. If you change a folder, a file format, an API route, or a setup step, update this file in the same commit. Add a line to the [Changelog](#14-changelog) at the bottom.
+> 📝 **This README is a living document.** Anyone on the team can edit it. If you change a folder, a file format, an API route, or a setup step, update this file in the same commit. Add a line to the [Changelog](#14-changelog) at the bottom.
 
 ---
 
@@ -30,9 +30,9 @@ Two input modes:
 | Module | Owner | Folder | One-line job |
 |---|---|---|---|
 | **ML / Elevation Estimation** | Siddu | `ml/` | Image in → depth → calibrated DSM + mesh files out |
-| **Backend** | _(name)_ | `backend/` | Receives uploads, runs the ML module, stores and serves results |
-| **Frontend** | _(name)_ | `frontend/` | Upload page, result preview, height validation, launches 3D view |
-| **Unity (3D)** | _(name)_ | `unity/` | Builds the textured 3D terrain and flythrough, with height/slope tools |
+| **Backend** | Zaynha| `backend/` | Receives uploads, runs the ML module, stores and serves results |
+| **Frontend** | Jenisha | `frontend/` | Upload page, result preview, height validation, launches 3D view |
+| **Unity (3D)** | Kaneez | `unity/` | Builds the textured 3D terrain and flythrough, with height/slope tools |
 
 > Fill in the names above. Everyone should read Sections 4 and 5, since they are the contract between modules.
 
@@ -52,117 +52,240 @@ Two input modes:
 
 ---
 
-## 4. System workflow (the most important section)
+## 4. System workflow
+
+**Goal:** an interactive 3D environment from **georeferenced RGB satellite imagery**, combining DEM terrain elevation with ML-predicted objects (buildings, trees, vegetation, roads, …). Non-georeferenced images may be explored later.
+
+### 4.1 Three different height quantities (do not mix them up)
+
+| Quantity | Meaning | Where it comes from |
+|---|---|---|
+| **Terrain elevation** | Height of the bare ground above a vertical reference | **DEM** (measured/derived elevation data, not an AI model) |
+| **Object height above ground** | How tall an object is above the ground beneath it (metres) | **ML model** (predicted) |
+| **Absolute top elevation** | Elevation of a roof/top surface | **Derived**: terrain elevation + object height |
+
+Example: DEM ground = 100 m, ML predicts a building height of 20 m → roof elevation = **120 m**, *assuming compatible vertical references*.
+
+### 4.2 Two parallel inputs, then combine
 
 ```
-                ┌───────────────┐
-                │   FRONTEND    │  1. User uploads image (+ optional reference points)
-                └──────┬────────┘
-                       │ POST /upload
+ PATH A (ML, Siddu)                          PATH B (Terrain, backend/pipeline owner)
+
+ Georeferenced RGB image                     DEM
+        │                                      │
+        ▼                                      ▼
+   ML model                          Terrain-data processing
+        │                                      │
+        ▼                                      ▼
+ Object predictions:                  Georeferenced terrain
+ class, geometry,                     elevation grid (aligned
+ location, height                     to the RGB image)
+ (objects.geojson)                    (terrain_dem.tif)
+        │                                      │
+        └──────────────┬───────────────────────┘
                        ▼
-                ┌───────────────┐
-                │    BACKEND    │  2. Saves file, creates job_id, calls ML module
-                └──────┬────────┘
-                       │ run_pipeline(input, job_dir)
+        Spatial alignment and combination
+        (place objects on terrain, derive top elevations)
                        ▼
-        ┌──────────────────────────────┐
-        │              ML              │
-        │ a. Preprocess image          │
-        │ b. Monocular depth (relative)│
-        │ c. Reference matching        │
-        │ d. Metric calibration        │
-        │ e. Geometric constraint check│
-        │ f. Export DSM + heightmap    │
-        └──────────────┬───────────────┘
-                       │ writes files to outputs/<job_id>/
+        Exported terrain + object data
                        ▼
-                ┌───────────────┐
-                │    BACKEND    │  3. Marks job "done", serves files via URL
-                └───┬───────┬───┘
-                    │       │
-          GET /result       │ GET /files/<job_id>/...
-                    ▼       ▼
-          ┌───────────┐   ┌───────────┐
-          │ FRONTEND  │   │   UNITY   │  4. Downloads texture + heightmap + metadata,
-          │ preview + │   │ 3D mesh + │     builds terrain, enables flythrough,
-          │ validation│   │ flythrough│     click-to-read height, slope tool
-          └───────────┘   └───────────┘
+        Backend / Unity integration
+                       ▼
+        Interactive 3D environment
 ```
 
-### Step by step
+The **backend is a separate component**: it receives inputs, manages jobs and serves results. It does not do ML or terrain maths itself; it calls `pipeline.run_pipeline()`.
 
-1. **Upload:** The user picks an image in the frontend. Optionally they add reference points or an SRTM file.
-2. **Job creation:** Backend saves the file in `data/uploads/`, generates a `job_id`, and starts the ML pipeline.
-3. **Depth estimation (ML):** The pre-trained model produces a relative depth map.
-4. **Reference matching (ML):** If the image is georeferenced, the footprint is matched against the reference database (landmarks with GPS and known elevation) or SRTM.
-5. **Calibration (ML):** Fit `Elevation = a × Depth + b`. If non-georeferenced, skip and output an rDSM.
-6. **Geometric constraints (ML):** Use line-of-sight and horizontal-distance geometry to sanity-check and refine heights.
-7. **Export (ML):** Write the output files listed in Section 5 into `outputs/<job_id>/`.
-8. **Serve (Backend):** Status becomes `done`; the files are available over HTTP.
-9. **Preview and validate (Frontend):** Show the depth/DSM preview, RMSE/MAE/correlation if reference data was given.
-10. **3D view (Unity):** Fetch `texture.png`, `heightmap16.png`, `metadata.json`; build the terrain; let the user fly around, click for height, measure slope.
+```
+FRONTEND ──POST /upload──▶ BACKEND ──run_pipeline()──▶ PIPELINE (calls ML + terrain)
+    ▲                         │                                │
+    │      GET /result        │◀──── outputs/<job_id>/ ────────┘
+    └─────────────────────────┤
+                  UNITY ◀──GET /files/<job_id>/...
+```
+
+### 4.3 Step by step
+
+1. **Upload:** user uploads a georeferenced RGB image and a DEM (or a DEM source is chosen; open question).
+2. **Job creation:** backend saves files in `data/uploads/`, creates a `job_id`, calls `run_pipeline()`.
+3. **Path A:** `ml.predict_objects()` reads the image and writes `objects.geojson`.
+4. **Path B:** `pipeline/terrain.py` loads the DEM, reprojects/resamples/crops it to the RGB image's extent and writes `terrain_dem.tif`.
+5. **Combine:** `pipeline/combine.py` samples ground elevation under each object, computes absolute top elevation, converts coordinates to Unity's local frame.
+6. **Export:** `pipeline/export.py` writes all output files (Section 5.3).
+7. **Serve:** backend marks the job `done` and serves files over HTTP.
+8. **Preview (Frontend):** shows status, metadata, and any validation numbers.
+9. **3D view (Unity):** builds terrain from the heightmap/DEM, applies the RGB texture, creates objects from `objects_scene.json`.
+
+### 4.4 Confirmed vs. still to investigate
+
+**Confirmed**
+- Input is a georeferenced RGB image plus a DEM for the same area.
+- Terrain elevation comes from the DEM; the ML component does not produce it.
+- The ML component provides object class, location, geometry and height above ground (where applicable).
+- Terrain and objects are combined in a separate pipeline step, then exported to Unity.
+- Objects are not forced into a single height number (roads, trees, buildings need different geometry).
+
+**Still to investigate / confirm** (nothing here is assumed to work yet)
+- Which pretrained model/approach suits overhead satellite imagery (weights, licence and suitability unknown).
+- Whether one model can give class + footprint + height, or we need separate models.
+- Whether heights can be estimated for trees, vegetation and roads, or only buildings at first.
+- Which DEM source (user-supplied, SRTM, other), its resolution and vertical datum.
+- How to sample ground elevation under a building footprint (see 5.4).
+- Whether calibration or refinement of predicted heights is needed later (not mandatory now).
+- What reference data exists for evaluating object heights.
+
+**Caveats**
+- A generic relative-depth model does **not** automatically give building heights in metres.
+- A georeferenced RGB image does not necessarily contain enough information to recover true building heights.
+- A DEM does not contain building heights, and building heights cannot be calibrated from terrain elevation alone.
 
 ---
 
 ## 5. Interface contracts (do not change without telling the team)
 
-### 5.1 ML → Backend (Python function)
+### 5.1 ML → Pipeline: object predictions
 
+**Function (Siddu provides):**
 ```python
-# ml/pipeline.py
-def run_pipeline(input_path: str, output_dir: str, reference_path: str | None = None) -> dict:
+# ml/predict.py
+def predict_objects(image_path: str, output_path: str) -> dict:
     """
-    input_path     : PNG / JPG / TIF image
-    output_dir     : folder where all outputs are written (outputs/<job_id>/)
-    reference_path : optional CSV of reference points or an SRTM/DEM GeoTIFF
-    returns        : the metadata dict (same content as metadata.json)
+    image_path  : georeferenced RGB image (GeoTIFF)
+    output_path : where to write objects.geojson
+    returns     : small summary dict (object count, classes, model name/version)
     """
 ```
 
-Backend only calls this one function. ML internals can change freely.
+**File format: `objects.geojson`** (GeoJSON FeatureCollection, WGS84 lon/lat, as the GeoJSON standard requires).
 
-### 5.2 Output files (ML → everyone)
+Each feature has a geometry and these properties:
 
-Every job produces a folder `outputs/<job_id>/`:
+| Property | Required | Meaning |
+|---|---|---|
+| `id` | yes | Unique object ID, e.g. `"b_0001"` |
+| `class` | yes | `building`, `tree`, `vegetation`, `road`, `other` |
+| `height_above_ground_m` | where applicable | Height above the ground beneath the object, in metres. `null` if not estimated |
+| `height_source` | yes | `"ml"`, `"dummy"` or `"none"` |
+| `confidence` | optional | 0 to 1 |
+| `width_m` | roads | Road width in metres |
+| `crown_radius_m` | trees, optional | Approximate tree crown radius |
+| `roof_type` | buildings, optional | e.g. `flat`, `gabled`. Optional, may be unknown |
+
+**Geometry by class (one height number is not enough for everything):**
+
+| Class | Geometry | Notes |
+|---|---|---|
+| `building` | `Polygon` (footprint) | Extruded by `height_above_ground_m` |
+| `tree` | `Point` | Needs height and optionally crown radius; Unity uses a tree model/prefab |
+| `vegetation` | `Polygon` | Area patch; height optional |
+| `road` | `LineString` + `width_m` | Placed on (draped over) the terrain surface; height is `null`/0 |
+| `other` | any | Rendered as simple placeholder unless agreed otherwise |
+
+Any additional rendering properties should be added to this table, so both sides know them. Unknown properties must be ignored, not crash anything.
+
+### 5.2 Terrain component outputs
+
+Provided by the pipeline (backend/pipeline owner), separately from the objects:
+
+| Item | Description |
+|---|---|
+| DEM elevation values | `terrain_dem.tif`: single-band GeoTIFF, elevation in metres, aligned to the RGB image extent |
+| Raster dimensions | width × height in pixels |
+| Spatial resolution | pixel size (metres, or degrees if the CRS is geographic) |
+| CRS | e.g. `EPSG:32643`; a projected CRS in metres is preferred for geometry maths |
+| Geographic extent | bounding box in the CRS and in lon/lat |
+| Vertical reference | datum/units of the DEM (e.g. which geoid). **Must be recorded; confirm for the chosen DEM source** |
+
+### 5.3 Output files per job: `outputs/<job_id>/`
 
 | File | Description | Used by |
 |---|---|---|
-| `texture.png` | Original RGB image (resized if needed) | Unity, Frontend |
-| `depth_relative.png` | Colourised relative depth, for preview | Frontend |
-| `dsm.tif` | Final DSM (GeoTIFF; rDSM if no georeference) | Validation, GIS users |
-| `heightmap16.png` | DSM scaled to 16-bit grayscale (0 = min, 65535 = max) | **Unity** |
+| `texture.png` | Original RGB image, cropped/resized to the terrain extent | Unity, Frontend |
+| `terrain_dem.tif` | DEM aligned to the image (GeoTIFF, metres) | Pipeline, validation, GIS |
+| `heightmap16.png` | **Terrain only** (from the DEM) as 16-bit grayscale | Unity |
+| `objects.geojson` | Raw object predictions (ML or dummy) | Pipeline, Frontend |
+| `objects_placed.geojson` | Same objects plus `ground_elevation_m` and derived `top_elevation_m` | Validation, GIS |
+| `objects_scene.json` | Objects in Unity-friendly local coordinates (below) | Unity |
 | `metadata.json` | See below | Everyone |
 
-`metadata.json`:
+**`dsm.tif` has been removed.** Its old meaning ("absolute DSM from relative depth") no longer applies. If we later want a combined surface raster (DEM plus rasterised object heights), it can be added as `surface_model.tif` with its meaning defined here first. An RGB-derived object-height map must never be labelled as terrain elevation.
 
-```json
+**Objects are not forced into the grayscale heightmap.** `heightmap16.png` is terrain only; objects travel as geometry.
+
+**Unity height conversion for the terrain heightmap:**
+`elevation_m = min_elevation_m + (pixel / 65535) × (max_elevation_m − min_elevation_m)`
+
+**`objects_scene.json` (proposed; confirm with Unity owner):** a local frame so Unity does not need CRS maths. Origin = terrain's south-west corner, `x` = east (m), `z` = north (m), `y` = up (m, elevation relative to `terrain.min_elevation_m`).
+
+```jsonc
 {
-  "job_id": "abc123",
-  "mode": "absolute",          // "absolute" (DSM) or "relative" (rDSM)
-  "width": 1024,
-  "height": 1024,
-  "min_elevation": 12.4,       // metres (or relative units if mode = relative)
-  "max_elevation": 88.9,
-  "pixel_size_m": 0.5,         // null if unknown
-  "crs": "EPSG:32643",         // null if not georeferenced
-  "calibration": { "a": 0.83, "b": 11.2 },
-  "metrics": { "rmse": 2.1, "mae": 1.6, "correlation": 0.94 }   // null if no reference
+  "origin_crs": "EPSG:32643",
+  "objects": [
+    { "id": "b_0001", "class": "building",
+      "footprint_xz": [[10,20],[30,20],[30,40],[10,40]],
+      "base_y": 41.2, "height_m": 12.0 },
+    { "id": "t_0001", "class": "tree", "position_xz": [55,70],
+      "base_y": 38.0, "height_m": 7.5, "crown_radius_m": 2.0 },
+    { "id": "r_0001", "class": "road", "path_xz": [[0,5],[50,8],[120,15]], "width_m": 6.0 }
+  ]
 }
 ```
 
-**Unity converts a heightmap pixel back to metres with:**
-`height = min_elevation + (pixel / 65535) × (max_elevation − min_elevation)`
+**`metadata.json`:**
+```jsonc
+{
+  "job_id": "abc123",
+  "input_georeferenced": true,
+  "crs": "EPSG:32643",
+  "extent": { "min_x": 0, "min_y": 0, "max_x": 0, "max_y": 0 },   // fill with real values
+  "width": 1024,
+  "height": 1024,
+  "pixel_size_m": 0.5,
+  "terrain": {
+    "source": "SRTM",                 // or other DEM name
+    "resolution_m": 30,
+    "vertical_reference": "to be recorded",
+    "min_elevation_m": 12.4,
+    "max_elevation_m": 88.9
+  },
+  "objects": {
+    "source": "dummy",                // "dummy" or "ml"
+    "model": null,
+    "count": 120,
+    "classes": ["building", "tree", "road", "vegetation"],
+    "height_meaning": "height above local ground, metres"
+  },
+  "derived": { "top_elevation": "terrain ground elevation + height_above_ground_m" },
+  "evaluation": { "terrain": null, "object_height": null }   // null if no reference data
+}
+```
 
-### 5.3 Backend API
+### 5.4 How the two components align, and how heights are used
+
+1. **Same CRS.** The RGB image's georeferencing defines the extent and CRS. ML converts pixel positions to geographic coordinates using the image's own geotransform and writes `objects.geojson` in WGS84.
+2. **DEM aligned to the image.** The pipeline reprojects, resamples and crops the DEM to the image extent (`terrain_dem.tif`). A coarse DEM (e.g. 30 m) will be much blurrier than the image; this limitation is expected and recorded in `metadata.json`.
+3. **Reproject objects** into the terrain's projected CRS (metres) for geometry maths.
+4. **Ground elevation:** for each object, sample the DEM under it: for buildings, a value from the footprint (proposal: the **minimum** or **mean** DEM value inside the footprint, **to be confirmed**); for trees, the DEM at the point; for roads, the DEM along the line.
+5. **Positioning:** `top_elevation_m = ground_elevation_m + height_above_ground_m`. The object's base sits at ground elevation and extends up by its height. Roads are draped on the terrain surface, with no vertical extrusion.
+6. **Assumption:** the DEM and predicted heights use compatible vertical references. Because predicted heights are *above ground* (relative), they only need the DEM for the base; absolute top elevation is meaningful only if the DEM's vertical reference is known.
+
+### 5.5 Backend API (routes unchanged)
 
 | Method | Route | Purpose |
 |---|---|---|
-| POST | `/upload` | Upload image (+ optional reference file). Returns `{ "job_id": "..." }` |
-| GET | `/status/{job_id}` | Returns `queued`, `running`, `done`, or `failed` |
+| POST | `/upload` | Upload the georeferenced image and the DEM file. Returns `{ "job_id": "..." }` |
+| GET | `/status/{job_id}` | `queued`, `running`, `done` or `failed` |
 | GET | `/result/{job_id}` | Returns the `metadata.json` content |
 | GET | `/files/{job_id}/{filename}` | Download any output file |
 
-Backend runs on `http://localhost:8000` during development.
+Only change: `/upload` now accepts a DEM as well as the image. Backend runs on `http://localhost:8000` during development.
+
+**Backend calls one function (backend/pipeline owner provides):**
+```python
+# pipeline/pipeline.py
+def run_pipeline(image_path: str, dem_path: str, output_dir: str, use_dummy_objects: bool = False) -> dict:
+    """Runs Path A (or dummy objects) and Path B, combines, exports. Returns metadata dict."""
+```
 
 ---
 
@@ -337,7 +460,8 @@ _Add a line for every change to contracts, structure, or setup._
 
 | Date | Who | Change |
 |---|---|---|
-| _YYYY-MM-DD_ | Siddu | Initial README created |
+| 2026-10-17 | Siddu | Initial README created |
+| 2026-10-25 | Siddu | Sections 4 and 5 rewritten: workflow now has two parallel paths (ML objects + DEM terrain); new object data contract (GeoJSON), terrain outputs and output files; `dsm.tif` removed from the contract |
 
 ---
 
