@@ -10,3 +10,4 @@ unity/Logs/
 unity/obj/
 unity/Builds/
 node_modules/
+data/samples/sample_image.tif
