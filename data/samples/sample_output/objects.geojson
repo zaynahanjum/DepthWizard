@@ -1,0 +1,152 @@
+{
+  "type": "FeatureCollection",
+  "stub": true,
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.31454018436278,
+              13.068663274994586
+            ],
+            [
+              77.31835020962335,
+              13.068663274994586
+            ],
+            [
+              77.31835020962335,
+              13.072398138203235
+            ],
+            [
+              77.31454018436278,
+              13.072398138203235
+            ],
+            [
+              77.31454018436278,
+              13.068663274994586
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "id": "b_0001",
+        "class": "building",
+        "height_above_ground_m": 12.0,
+        "height_source": "ml",
+        "confidence": 0.9
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.32644651330202,
+              13.0733318540054
+            ],
+            [
+              77.3312090448777,
+              13.0733318540054
+            ],
+            [
+              77.3312090448777,
+              13.076133001411886
+            ],
+            [
+              77.32644651330202,
+              13.076133001411886
+            ],
+            [
+              77.32644651330202,
+              13.0733318540054
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "id": "b_0002",
+        "class": "building",
+        "height_above_ground_m": 20.0,
+        "height_source": "ml",
+        "confidence": 0.8
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.33597157645339,
+              13.087337591037835
+            ],
+            [
+              77.33930534855637,
+              13.087337591037835
+            ],
+            [
+              77.33930534855637,
+              13.090605596345403
+            ],
+            [
+              77.33597157645339,
+              13.090605596345403
+            ],
+            [
+              77.33597157645339,
+              13.087337591037835
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "id": "b_0003",
+        "class": "building",
+        "height_above_ground_m": null,
+        "height_source": "none"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.31930271593848,
+          13.089671880543241
+        ]
+      },
+      "properties": {
+        "id": "t_0001",
+        "class": "tree",
+        "height_above_ground_m": 7.5,
+        "crown_radius_m": 2.0,
+        "height_source": "ml",
+        "confidence": 0.7
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.34073410802908,
+          13.070997564499992
+        ]
+      },
+      "properties": {
+        "id": "t_0002",
+        "class": "tree",
+        "height_above_ground_m": 9.0,
+        "crown_radius_m": 2.5,
+        "height_source": "ml",
+        "confidence": 0.7
+      }
+    }
+  ]
+}
