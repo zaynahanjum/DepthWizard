@@ -10,4 +10,7 @@ unity/Logs/
 unity/obj/
 unity/Builds/
 node_modules/
-echo "*.tif" >> .gitignore
+*.tif
+*.tiff
+*.TIF
+*.TIFF
