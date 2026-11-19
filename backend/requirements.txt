@@ -1,3 +1,11 @@
+fastapi
+uvicorn[standard]
+python-multipart
 rasterio
 numpy
 matplotlib
+requests
+pillow
+httpx
+pytest
+python-dotenv
