@@ -113,8 +113,10 @@ export class Flight {
 
   // ---- input ------------------------------------------------------------
   _key(e, down) {
-    const tag = (e.target && e.target.tagName) || '';
-    if (['INPUT', 'SELECT', 'TEXTAREA'].includes(tag) && e.code !== 'Escape') return;
+    // only real text fields should swallow keys; sliders / buttons / dropdowns must not block flying
+    const el = e.target;
+    const typing = el && (el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && !['range', 'checkbox', 'button'].includes(el.type)));
+    if (typing) return;
     if (down) {
       if (MOVE_KEYS.has(e.code)) {
         if (this.mode !== 'free') this.setMode('free');
@@ -126,21 +128,40 @@ export class Flight {
 
   _pointer(dom) {
     let down = null;
-    dom.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY, t: performance.now(), lx: e.clientX, ly: e.clientY }; });
+    dom.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      down = { x: e.clientX, y: e.clientY, t: performance.now(), lx: e.clientX, ly: e.clientY, dragged: false };
+      try { dom.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+    });
     dom.addEventListener('pointermove', (e) => {
       if (!down || !(e.buttons & 1)) return;
-      if (this.mode === 'free') {
-        this.yaw -= (e.clientX - down.lx) * 0.0025;
-        this.pitch = Math.max(-1.5, Math.min(1.5, this.pitch - (e.clientY - down.ly) * 0.0025));
+      if (!down.dragged && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) {
+        down.dragged = true;
+        if (this.mode === 'auto') this.setMode('free');   // dragging takes control of the camera
+      }
+      if (down.dragged && this.mode === 'free') {
+        this.yaw -= (e.clientX - down.lx) * 0.0028;
+        this.pitch = Math.max(-1.5, Math.min(1.5, this.pitch - (e.clientY - down.ly) * 0.0028));
       }
       down.lx = e.clientX; down.ly = e.clientY;
     });
-    window.addEventListener('pointerup', (e) => {
+    const end = (e) => {
       if (!down) return;
       const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
-      if (moved < 5 && performance.now() - down.t < 500 && e.target === dom) this.onClick(e.clientX, e.clientY);
+      if (!down.dragged && moved < 5 && performance.now() - down.t < 500) this.onClick(e.clientX, e.clientY);
       down = null;
-    });
+    };
+    dom.addEventListener('pointerup', end);
+    dom.addEventListener('pointercancel', () => { down = null; });
+    // scroll wheel: move forward / back along the view direction (orbit zoom is handled by OrbitControls)
+    dom.addEventListener('wheel', (e) => {
+      if (this.mode === 'orbit') return;
+      e.preventDefault();
+      if (this.mode === 'auto') this.setMode('free');
+      const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+      const step = -Math.sign(e.deltaY) * this.baseSpeed * 0.6 * this.speedMul;
+      this.camera.position.addScaledVector(fwd, step);
+    }, { passive: false });
   }
 
   // ---- per-frame ----------------------------------------------------------

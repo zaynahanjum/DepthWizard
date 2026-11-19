@@ -78,8 +78,8 @@ async function main() {
     document.querySelectorAll('#modes button').forEach((b) => b.classList.toggle('on', b.dataset.mode === m));
     $('play').style.display = m === 'auto' ? '' : 'none';
     $('hud-help').textContent = {
-      auto: 'Flythrough: press any movement key (W A S D) to take control · click terrain to measure',
-      free: 'W A S D move · Q/E or Space down/up · Shift = fast · drag to look · click terrain to measure',
+      auto: 'Flythrough: drag the mouse, scroll or press W A S D to take control · click terrain to measure',
+      free: 'Drag to look · scroll = forward/back · W A S D move · Q/E or Space down/up · Shift = fast · click to measure',
       orbit: 'Drag to orbit · right-drag to pan · scroll to zoom · click terrain to measure',
     }[m];
   };
@@ -142,6 +142,12 @@ async function main() {
   exagEl.onchange = () => { rebuildObjects(); flight.buildPath(); flight.u = flight.nearestU(camera.position); refreshMeasure(); };
   $('view-mode').onchange = (e) => { const m = terrain.setMode(e.target.value); e.target.value = m; };
   $('show-objects').onchange = (e) => { if (objGroup) objGroup.visible = e.target.checked; };
+
+  // give keyboard focus back to the scene after using a panel control, so W A S D keep working
+  const releaseFocus = () => setTimeout(() => { const a = document.activeElement; if (a && a !== document.body) a.blur(); }, 0);
+  $('panel').addEventListener('change', releaseFocus);
+  $('panel').addEventListener('click', releaseFocus);
+  $('panel').addEventListener('pointerup', releaseFocus);
 
   // exaggeration changed -> path and objects must follow
   terrain.setExaggeration(exag0);
