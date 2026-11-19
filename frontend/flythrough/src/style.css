@@ -25,6 +25,21 @@ button:hover { background: #2c3744; }
 .seg button.on { background: var(--accent); color: #1a1205; font-weight: 600; }
 .readout { margin: 8px 0; padding: 8px 10px; border-radius: 8px; background: rgba(0,0,0,.28); font-variant-numeric: tabular-nums; white-space: pre-line; font-size: 13px; }
 
+.topbar-btn { margin-left: 10px; padding: 4px 10px; font-size: 11px; font-weight: 600; border-radius: 6px; background: var(--accent); color: #1a1205; border: none; cursor: pointer; }
+.topbar-btn:hover { filter: brightness(1.1); }
+
+.modal { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.72); backdrop-filter: blur(6px); display: grid; place-items: center; z-index: 20; }
+.modal-card { width: 92%; max-width: 440px; background: #151b22; border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; box-shadow: 0 16px 36px rgba(0,0,0,0.5); }
+.modal-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.modal-top h3 { margin: 0; font-size: 14px; font-weight: 600; color: #e8edf2; }
+.modal-close { background: transparent; border: none; font-size: 20px; color: #a3b0bd; cursor: pointer; padding: 0 4px; line-height: 1; }
+.modal-close:hover { color: #fff; }
+.btn-highlight { background: var(--accent); color: #1a1205; font-weight: 600; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; }
+.btn-highlight:hover { filter: brightness(1.1); }
+.job-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; border-radius: 6px; background: rgba(255,255,255,0.04); margin-bottom: 4px; }
+.job-item a { color: var(--accent); text-decoration: none; font-weight: 500; }
+.job-item a:hover { text-decoration: underline; }
+
 #hud { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; gap: 14px; align-items: center; padding: 7px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; backdrop-filter: blur(8px); white-space: nowrap; max-width: calc(100% - 24px); overflow: hidden; }
 #hud-alt { font-variant-numeric: tabular-nums; color: var(--accent); }
 

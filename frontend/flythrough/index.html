@@ -14,7 +14,35 @@
   <header id="topbar">
     <strong>DepthWizard</strong><span>3D terrain flythrough</span>
     <span id="job" class="muted"></span>
+    <button id="btn-open-upload" class="topbar-btn" title="Run new ML/terrain job">+ New Job</button>
   </header>
+
+  <div id="modal-upload" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-top">
+        <h3>Run AI Depth & Terrain Pipeline</h3>
+        <button id="btn-close-modal" class="modal-close">&times;</button>
+      </div>
+      <form id="upload-form">
+        <label>
+          Satellite Image (GeoTIFF / PNG / JPG)
+          <input type="file" id="input-image" name="image" accept=".tif,.tiff,.png,.jpg,.jpeg" required />
+        </label>
+        <label>
+          Reference DEM (Optional GeoTIFF)
+          <input type="file" id="input-dem" name="dem" accept=".tif,.tiff" />
+        </label>
+        <div id="upload-feedback" class="muted small" style="margin: 6px 0; min-height: 18px;"></div>
+        <div class="row">
+          <button type="submit" id="btn-submit-upload" class="btn-highlight">Process with AI & 3D View</button>
+        </div>
+      </form>
+      <div id="server-jobs-wrap" style="margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px;">
+        <h4 style="margin: 0 0 6px 0; font-size: 11px; text-transform: uppercase; color: #a3b0bd;">Server Jobs</h4>
+        <div id="server-jobs-list" class="small muted">Checking server...</div>
+      </div>
+    </div>
+  </div>
 
   <aside id="panel" class="hidden">
     <section>

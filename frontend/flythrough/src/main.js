@@ -17,8 +17,9 @@ function fail(err) {
 
 async function main() {
   const base = resolveBase(params);
+  const api = (params.get('api') || 'http://localhost:8000').replace(/\/$/, '');
   $('job').textContent = params.get('job') ? `job ${params.get('job')}` : base.replace(/^\.\//, '');
-  const { meta, hm, textureUrl, objects } = await loadJob(base, (m) => { $('loading-msg').textContent = m; });
+  const { meta, hm, textureUrl, objects } = await loadJob(base, (m) => { $('loading-msg').textContent = m; }, params);
 
   $('loading-msg').textContent = 'Building terrain mesh…';
   await new Promise((r) => requestAnimationFrame(r));
@@ -50,16 +51,33 @@ async function main() {
   const exag0 = Number(params.get('exag')) || autoExag;
   terrain.setExaggeration(exag0);
 
+  // ---- texture loading ---------------------------------------------------
+  // The texture loads asynchronously. While it is pending we disable the
+  // "Satellite texture" option so the user gets clear feedback, and
+  // re-enable + auto-switch to it the moment it arrives.
+  const texOpt = $('view-mode').querySelector('option[value="texture"]');
+  if (texOpt) { texOpt.disabled = true; texOpt.textContent = 'Satellite texture (loading…)'; }
+
   new THREE.TextureLoader().load(
     textureUrl,
     (tex) => {
       tex.colorSpace = THREE.SRGBColorSpace;
       tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
       terrain.setTexture(tex);
-      $('view-mode').value = terrain.mode;
+      // Re-enable the option now that the texture is ready
+      if (texOpt) { texOpt.disabled = false; texOpt.textContent = 'Satellite texture'; }
+      // Switch to texture mode and sync the dropdown
+      terrain.setMode('texture');
+      $('view-mode').value = 'texture';
     },
     undefined,
-    () => { terrain.setTexture(null); $('view-mode').value = 'elevation'; console.warn('texture.png missing: using elevation colours'); },
+    () => {
+      // texture.png genuinely missing – keep the option disabled with a note
+      terrain.setTexture(null);
+      if (texOpt) { texOpt.textContent = 'Satellite texture (unavailable)'; }
+      $('view-mode').value = 'elevation';
+      console.warn('texture.png missing: using elevation colours');
+    },
   );
 
   // ---- objects ----------------------------------------------------------
@@ -140,11 +158,25 @@ async function main() {
   clrEl.onchange = () => { flight.buildPath(); flight.u = flight.nearestU(camera.position); };
   exagEl.oninput = (e) => { terrain.setExaggeration(Number(e.target.value)); $('exag-out').textContent = `${e.target.value}×`; clrLabel(); };
   exagEl.onchange = () => { rebuildObjects(); flight.buildPath(); flight.u = flight.nearestU(camera.position); refreshMeasure(); };
-  $('view-mode').onchange = (e) => { const m = terrain.setMode(e.target.value); e.target.value = m; };
+  $('view-mode').onchange = (e) => {
+    const requested = e.target.value;
+    const actual = terrain.setMode(requested);
+    // If the texture was pending and user chose 'texture', setMode returns
+    // 'elevation' but _pendingTexture is set — keep the dropdown showing
+    // 'texture' as a promise that it will switch once loaded.
+    if (requested !== 'texture') e.target.value = actual;
+  };
   $('show-objects').onchange = (e) => { if (objGroup) objGroup.visible = e.target.checked; };
 
-  // give keyboard focus back to the scene after using a panel control, so W A S D keep working
-  const releaseFocus = () => setTimeout(() => { const a = document.activeElement; if (a && a !== document.body) a.blur(); }, 0);
+  // Give keyboard focus back to the scene after using a panel control so
+  // W A S D keep working.  IMPORTANT: skip <select> elements – blurring a
+  // select immediately after its 'change' event prevents the browser from
+  // committing the new value on some platforms, which is what made the
+  // "Satellite texture" dropdown option appear to do nothing.
+  const releaseFocus = (e) => {
+    if (e && e.target && e.target.tagName === 'SELECT') return;   // ← let selects keep focus until blur naturally
+    setTimeout(() => { const a = document.activeElement; if (a && a !== document.body && a.tagName !== 'SELECT') a.blur(); }, 80);
+  };
   $('panel').addEventListener('change', releaseFocus);
   $('panel').addEventListener('click', releaseFocus);
   $('panel').addEventListener('pointerup', releaseFocus);
@@ -186,6 +218,100 @@ async function main() {
 
   // handy for debugging in the console and for automated checks
   window.dw = { terrain, flight, camera, renderer, scene, meta };
+
+  // ---- upload modal & server jobs -----------------------------------------
+  setupUploadModal(api);
+}
+
+function setupUploadModal(api) {
+  const modal = $('modal-upload');
+  const btnOpen = $('btn-open-upload');
+  const btnClose = $('btn-close-modal');
+  const form = $('upload-form');
+  const feedback = $('upload-feedback');
+  const jobsList = $('server-jobs-list');
+
+  if (!modal || !btnOpen) return;
+
+  async function refreshServerJobs() {
+    if (!jobsList) return;
+    jobsList.innerHTML = 'Connecting to server…';
+    try {
+      const res = await fetch(`${api}/jobs`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (!data.jobs || !data.jobs.length) {
+        jobsList.innerHTML = '<span class="muted">No server jobs found yet. Upload an image above to start.</span>';
+        return;
+      }
+      jobsList.innerHTML = data.jobs.map((j) => `
+        <div class="job-item">
+          <span><strong>${j.job_id}</strong> <small class="muted">(${j.status})</small></span>
+          <a href="?job=${encodeURIComponent(j.job_id)}&api=${encodeURIComponent(api)}">Open 3D ↗</a>
+        </div>
+      `).join('');
+    } catch {
+      jobsList.innerHTML = `<span class="muted small">Backend not reached at ${api}. Start with <code>uvicorn backend.main:app</code></span>`;
+    }
+  }
+
+  btnOpen.onclick = () => {
+    modal.classList.remove('hidden');
+    feedback.textContent = '';
+    refreshServerJobs();
+  };
+
+  btnClose.onclick = () => {
+    modal.classList.add('hidden');
+  };
+
+  modal.onclick = (e) => {
+    if (e.target === modal) modal.classList.add('hidden');
+  };
+
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const imgInput = $('input-image');
+    const demInput = $('input-dem');
+    if (!imgInput.files || !imgInput.files[0]) {
+      feedback.textContent = 'Please select a satellite image.';
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('image', imgInput.files[0]);
+    if (demInput.files && demInput.files[0]) {
+      formData.append('dem', demInput.files[0]);
+    }
+
+    const btnSubmit = $('btn-submit-upload');
+    btnSubmit.disabled = true;
+    btnSubmit.textContent = 'Uploading to server…';
+    feedback.textContent = 'Uploading file to DepthWizard backend…';
+
+    try {
+      const res = await fetch(`${api}/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.detail || `Upload failed with HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      feedback.innerHTML = `<strong>Job ${data.job_id} queued!</strong> Launching 3D flythrough…`;
+      setTimeout(() => {
+        location.href = `?job=${encodeURIComponent(data.job_id)}&api=${encodeURIComponent(api)}`;
+      }, 800);
+    } catch (err) {
+      console.error(err);
+      feedback.textContent = `Error: ${err.message}`;
+      btnSubmit.disabled = false;
+      btnSubmit.textContent = 'Process with AI & 3D View';
+    }
+  };
 }
 
 main().catch(fail);

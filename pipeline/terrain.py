@@ -47,8 +47,24 @@ def align_dtm_to_satellite(
         # Open the original DTM.
         with rasterio.open(dtm_path) as dtm:
 
-            print("Original DTM CRS:", dtm.crs)
+            dtm_crs = dtm.crs
+            if dtm_crs is None:
+                from rasterio.crs import CRS
+                dtm_crs = CRS.from_epsg(4326)
+
+            print("Original DTM CRS:", dtm_crs)
             print("Original DTM resolution:", dtm.res)
+
+            # If the satellite image has no CRS (e.g. plain JPG/PNG),
+            # inherit the DTM's spatial reference and bounds so reprojection succeeds.
+            if target_crs is None:
+                from rasterio.transform import from_bounds
+                target_crs = dtm_crs
+                target_transform = from_bounds(
+                    dtm.bounds.left, dtm.bounds.bottom, dtm.bounds.right, dtm.bounds.top,
+                    target_width, target_height
+                )
+                print("Satellite image lacked CRS; adopting DTM CRS & bounds:", target_crs)
 
             # Create an output array on the satellite grid.
             destination = np.full(
@@ -62,7 +78,7 @@ def align_dtm_to_satellite(
                 source=rasterio.band(dtm, 1),
                 destination=destination,
                 src_transform=dtm.transform,
-                src_crs=dtm.crs,
+                src_crs=dtm_crs,
                 src_nodata=dtm.nodata,
                 dst_transform=target_transform,
                 dst_crs=target_crs,

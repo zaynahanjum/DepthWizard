@@ -23,7 +23,37 @@ export function resolveBase(params) {
   return base.endsWith('/') ? base : base + '/';
 }
 
-export async function loadJob(base, onProgress = () => {}) {
+export async function loadJob(base, onProgress = () => {}, params = null) {
+  const jobId = params?.get('job');
+  const api = (params?.get('api') || 'http://localhost:8000').replace(/\/$/, '');
+
+  // If a backend job ID is provided, check and poll the backend until complete
+  if (jobId) {
+    let attempts = 0;
+    while (attempts < 60) {
+      try {
+        const stRes = await fetch(`${api}/status/${encodeURIComponent(jobId)}`);
+        if (stRes.ok) {
+          const st = await stRes.json();
+          if (st.status === 'done') {
+            break;
+          } else if (st.status === 'failed') {
+            throw new Error(`Pipeline failed: ${st.error || 'Unknown error'}`);
+          } else {
+            onProgress(`Running AI depth & terrain pipeline (${st.status})…`);
+            await new Promise((r) => setTimeout(r, 1500));
+            attempts++;
+            continue;
+          }
+        }
+      } catch (err) {
+        if (err.message && err.message.includes('Pipeline failed')) throw err;
+        break; // Server might not have status or endpoint, proceed to fetch direct files
+      }
+      break;
+    }
+  }
+
   onProgress('Reading metadata…');
   const metaRes = await fetchChecked(base + 'metadata.json', 'metadata.json');
   let meta;

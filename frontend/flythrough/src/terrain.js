@@ -102,12 +102,20 @@ export class Terrain {
 
   setTexture(tex) {
     this.texture = tex;
+    // If texture became available and the pending mode was 'texture', apply it now
+    if (tex && this._pendingTexture) { this._pendingTexture = false; this.setMode('texture'); return; }
     if (!tex && this.mode === 'texture') this.mode = 'elevation';
     this.setMode(this.mode);
   }
 
   setMode(mode) {
-    if (mode === 'texture' && !this.texture) mode = 'elevation';
+    if (mode === 'texture' && !this.texture) {
+      // Texture not ready yet — remember the intent and show elevation meanwhile
+      this._pendingTexture = true;
+      mode = 'elevation';
+    } else {
+      this._pendingTexture = false;
+    }
     this.mode = mode;
     const textured = mode === 'texture';
     this.material.map = textured ? this.texture : null;

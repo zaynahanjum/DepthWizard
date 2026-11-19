@@ -13,11 +13,12 @@ SATELLITE_PATH = "data/samples/satellite.tif"
 OUTPUT_PATH = "data/downloads/fetched_dtm.tif"
 ALIGNED_OUTPUT_PATH = "outputs/terrain_dem.tif"
 DATASET = "GEDTM30"
+DEFAULT_API_KEY = "ff7885b82b1c3c2f4d6dcff65494b7b4"
 
 
 def fetch_dtm(satellite_path, output_path, dataset=DATASET):
 
-    api_key = os.environ.get("OPENTOPOGRAPHY_API_KEY")
+    api_key = os.environ.get("OPENTOPOGRAPHY_API_KEY") or DEFAULT_API_KEY
 
     if not api_key:
         raise RuntimeError(
