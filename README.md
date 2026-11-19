@@ -46,7 +46,7 @@ Two input modes:
 | Calibration | Linear fit `Elevation = a × Depth + b` against reference points or SRTM, plus Pythagorean geometric checks (line-of-sight slant and horizontal distance) |
 | Backend | Python + FastAPI (suggested), Uvicorn |
 | Frontend | HTML/JS or React (team's choice, decide in the first meeting) |
-| 3D / Visualization | Unity (C#), runtime terrain/mesh built from heightmap + texture |
+| 3D / Visualization | Unity (C#), runtime terrain/mesh built from heightmap + texture; browser flythrough in `frontend/flythrough/` (Three.js + Vite) |
 | Formats | GeoTIFF (DSM), 16-bit PNG (heightmap), PNG/JPG (texture), JSON (metadata) |
 | Version control | Git + GitHub |
 
@@ -361,6 +361,7 @@ uvicorn backend.main:app --reload --port 8000
 ```
 
 **Frontend:** open `frontend/index.html` or run its dev server (add the command here once decided).
+**3D flythrough (Three.js):** `cd frontend/flythrough && npm install && npm run dev`. See `frontend/flythrough/README.md` for loading real DEM output.
 **Unity:** open the `unity/` folder in Unity Hub (use the same Unity version on every machine, write it here: `Unity ____`).
 
 > Note: Unity and Frontend teammates can start without waiting for ML. See Section 9.
@@ -462,6 +463,7 @@ _Add a line for every change to contracts, structure, or setup._
 |---|---|---|
 | 2026-10-17 | Siddu | Initial README created |
 | 2026-10-25 | Siddu | Sections 4 and 5 rewritten: workflow now has two parallel paths (ML objects + DEM terrain); new object data contract (GeoJSON), terrain outputs and output files; `dsm.tif` removed from the contract |
+| 2026-11-19 | 3D flythrough | Added `frontend/flythrough/` (Three.js terrain flythrough) and `tools/export_viewer.py` (GeoTIFF to heightmap16.png / texture.png / metadata.json). Optional `texture: {width, height}` block in `metadata.json` |
 
 ---
 
