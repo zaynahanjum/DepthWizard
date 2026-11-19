@@ -49,6 +49,9 @@ def export(terrain_path, satellite_path, out_dir, max_size=1024, texture_size=20
         dem = ds.read(1, out_shape=shape, resampling=Resampling.average, masked=True)
         bounds, crs = ds.bounds, ds.crs
         width_m = bounds.right - bounds.left
+        if crs is not None and crs.is_geographic:          # degrees -> metres for pixel_size_m
+            lat = np.radians((bounds.top + bounds.bottom) / 2)
+            width_m = width_m * 111320 * np.cos(lat)
         tags = ds.tags()
     mask = np.ma.getmaskarray(dem) | ~np.isfinite(dem.filled(0))
     data = fill_nodata(dem.filled(0).astype("float32"), mask)
