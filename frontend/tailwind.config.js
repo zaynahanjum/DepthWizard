@@ -8,6 +8,20 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
+        display: [
+          '"Space Grotesk"',
+          'Inter',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          'sans-serif',
+        ],
+        heading: [
+          '"Space Grotesk"',
+          'Inter',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          'sans-serif',
+        ],
         sans: [
           'Inter',
           '-apple-system',

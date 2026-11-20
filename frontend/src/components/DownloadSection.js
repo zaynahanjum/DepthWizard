@@ -54,7 +54,7 @@ export default function DownloadSection({ jobId }) {
     <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
       <div className="pb-4 border-b border-slate-100 flex items-center justify-between">
         <div>
-          <h3 className="text-base font-semibold text-slate-900 tracking-tight">
+          <h3 className="font-display text-lg font-bold text-slate-900 tracking-tight">
             Data Exports
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">

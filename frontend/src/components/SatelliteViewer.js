@@ -53,7 +53,7 @@ export default function SatelliteViewer({ jobId, metadata, geojsonData, selected
       {/* Header */}
       <div className="flex items-center justify-between pb-4 border-b border-slate-100">
         <div>
-          <h3 className="text-sm font-semibold text-slate-900 tracking-tight">
+          <h3 className="font-display text-base font-bold text-slate-900 tracking-tight">
             Satellite Imagery
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">

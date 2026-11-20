@@ -123,7 +123,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex items-center space-x-3">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
               Elevation & Object Analysis
             </h1>
             {activeJobId && (

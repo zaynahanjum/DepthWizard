@@ -35,7 +35,7 @@ export default function Navbar() {
           <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center text-white transition-transform group-hover:scale-105">
             <Compass className="w-4 h-4 text-white" />
           </div>
-          <span className="font-semibold text-slate-900 tracking-tight text-base">
+          <span className="font-display font-bold text-slate-900 tracking-tight text-lg">
             DepthWizard
           </span>
         </Link>

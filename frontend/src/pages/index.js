@@ -48,10 +48,10 @@ export default function UploadPage() {
     <div className="max-w-6xl mx-auto px-6 pt-12">
       {/* Clean Header */}
       <div className="mb-10 text-center max-w-2xl mx-auto">
-        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900">
+        <h1 className="font-display text-3xl sm:text-5xl font-bold tracking-tight text-slate-900">
           Satellite Elevation & 3D Terrain
         </h1>
-        <p className="mt-3 text-slate-500 text-sm sm:text-base leading-relaxed">
+        <p className="mt-3.5 text-slate-500 text-sm sm:text-base leading-relaxed">
           Upload a georeferenced satellite image to extract bare-ground elevation models, detect structures, and estimate metric heights.
         </p>
       </div>
