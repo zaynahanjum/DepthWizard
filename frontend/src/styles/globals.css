@@ -2,54 +2,31 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --color-geo-bg: #080c14;
-  --color-geo-card: #0d1424;
-  --color-geo-border: #1c2a4a;
+@layer base {
+  body {
+    background-color: #f8fafc;
+    color: #0f172a;
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 }
 
-body {
-  background-color: #080c14;
-  color: #e2e8f0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  overflow-x: hidden;
-}
-
-/* Custom Geospatial Grid Background */
-.bg-geo-grid {
-  background-size: 40px 40px;
-  background-image: 
-    linear-gradient(to right, rgba(28, 42, 74, 0.25) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(28, 42, 74, 0.25) 1px, transparent 1px);
-}
-
-.bg-geo-dots {
-  background-image: radial-gradient(rgba(0, 210, 255, 0.15) 1px, transparent 1px);
-  background-size: 24px 24px;
-}
-
-/* Custom Scrollbar */
+/* Minimalist Scrollbar */
 ::-webkit-scrollbar {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
 }
+
 ::-webkit-scrollbar-track {
-  background: #080c14;
+  background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
-  background: #1c2a4a;
-  border-radius: 4px;
+  background: #cbd5e1;
+  border-radius: 9999px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
-  background: #273b66;
-}
-
-/* Scanline subtle animation */
-@keyframes scanline {
-  0% { transform: translateY(-100%); }
-  100% { transform: translateY(1000%); }
-}
-
-.animate-scan {
-  animation: scanline 8s linear infinite;
+  background: #94a3b8;
 }

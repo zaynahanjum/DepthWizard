@@ -1,16 +1,5 @@
-import React, { useState, useRef, useEffect } from "react";
-import { 
-  ZoomIn, 
-  ZoomOut, 
-  Maximize2, 
-  RotateCcw, 
-  Layers, 
-  Eye, 
-  EyeOff, 
-  Info,
-  Compass,
-  MapPin
-} from "lucide-react";
+import React, { useState, useRef } from "react";
+import { ZoomIn, ZoomOut, RotateCcw, Eye, EyeOff } from "lucide-react";
 import { getFileUrl } from "../lib/api";
 
 export default function SatelliteViewer({ jobId, metadata, geojsonData, selectedObject, onSelectObject }) {
@@ -27,24 +16,20 @@ export default function SatelliteViewer({ jobId, metadata, geojsonData, selected
 
   const textureUrl = jobId ? getFileUrl(jobId, "texture.png") : null;
 
-  // Reset viewport
   const handleReset = () => {
     setScale(1);
     setPosition({ x: 0, y: 0 });
   };
 
-  // Zoom controls
-  const handleZoomIn = () => setScale((prev) => Math.min(prev + 0.35, 5));
-  const handleZoomOut = () => setScale((prev) => Math.max(prev - 0.35, 0.5));
+  const handleZoomIn = () => setScale((prev) => Math.min(prev + 0.3, 5));
+  const handleZoomOut = () => setScale((prev) => Math.max(prev - 0.3, 0.5));
 
-  // Wheel zoom
   const handleWheel = (e) => {
     e.preventDefault();
     const delta = e.deltaY < 0 ? 0.2 : -0.2;
     setScale((prev) => Math.min(Math.max(prev + delta, 0.5), 5));
   };
 
-  // Drag to pan
   const handleMouseDown = (e) => {
     setIsDragging(true);
     setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
@@ -60,70 +45,61 @@ export default function SatelliteViewer({ jobId, metadata, geojsonData, selected
 
   const handleMouseUp = () => setIsDragging(false);
 
-  // Normalize GeoJSON features to image coordinates (0% to 100%)
   const extent = metadata?.extent;
   const isGeoreferenced = !!(extent && extent.min_x !== undefined && extent.max_x !== undefined);
 
   return (
-    <div className="bg-geo-card border border-geo-border rounded-xl p-5 shadow-xl flex flex-col h-full">
-      {/* Header with Title and Viewport Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-geo-border gap-3">
+    <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-subtle flex flex-col h-full">
+      {/* Header */}
+      <div className="flex items-center justify-between pb-4 border-b border-slate-100">
         <div>
-          <div className="flex items-center space-x-2">
-            <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wider flex items-center space-x-2">
-              <span>Satellite Imagery Viewer</span>
-            </h3>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-800 text-cyan-300">
-              RGB Orthomosaic
-            </span>
-          </div>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Georeferenced optical imagery draped over the spatial terrain extent
+          <h3 className="text-sm font-semibold text-slate-900 tracking-tight">
+            Satellite Imagery
+          </h3>
+          <p className="text-xs text-slate-500 mt-0.5">
+            RGB orthomosaic cropped to terrain extent
           </p>
         </div>
 
-        {/* Viewport Toolbar */}
-        <div className="flex items-center space-x-2">
-          {/* Overlays Toggle */}
+        {/* Toolbar */}
+        <div className="flex items-center space-x-1.5">
           <button
             onClick={() => setShowOverlays(!showOverlays)}
-            className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded text-xs font-mono border transition-all ${
+            className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors flex items-center space-x-1.5 ${
               showOverlays
-                ? "bg-cyan-950/70 border-cyan-500/60 text-cyan-300"
-                : "bg-geo-surface border-geo-border text-slate-400 hover:text-white"
+                ? "bg-slate-900 text-white border-slate-900"
+                : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
             }`}
-            title="Toggle detected object vector footprint overlays"
           >
             {showOverlays ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-            <span>Vector Overlays</span>
+            <span>Overlays</span>
           </button>
 
-          {/* Zoom Buttons */}
           <button
             onClick={handleZoomIn}
-            className="p-1.5 rounded bg-geo-surface border border-geo-border text-slate-300 hover:text-white hover:border-geo-cyan transition-all"
-            title="Zoom In"
+            className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors"
+            title="Zoom in"
           >
-            <ZoomIn className="w-4 h-4" />
+            <ZoomIn className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={handleZoomOut}
-            className="p-1.5 rounded bg-geo-surface border border-geo-border text-slate-300 hover:text-white hover:border-geo-cyan transition-all"
-            title="Zoom Out"
+            className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors"
+            title="Zoom out"
           >
-            <ZoomOut className="w-4 h-4" />
+            <ZoomOut className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={handleReset}
-            className="p-1.5 rounded bg-geo-surface border border-geo-border text-slate-300 hover:text-white hover:border-geo-cyan transition-all"
-            title="Reset View"
+            className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors"
+            title="Reset view"
           >
-            <RotateCcw className="w-4 h-4" />
+            <RotateCcw className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
-      {/* Main Interactive Canvas / Image Area */}
+      {/* Viewport Canvas */}
       <div
         ref={containerRef}
         onWheel={handleWheel}
@@ -131,33 +107,29 @@ export default function SatelliteViewer({ jobId, metadata, geojsonData, selected
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
-        className="relative flex-1 min-h-[440px] max-h-[560px] bg-geo-bg border border-geo-border/80 rounded-lg mt-4 overflow-hidden cursor-grab active:cursor-grabbing select-none flex items-center justify-center"
+        className="relative flex-1 min-h-[400px] max-h-[520px] bg-slate-50 border border-slate-200 rounded-xl mt-4 overflow-hidden cursor-grab active:cursor-grabbing select-none flex items-center justify-center"
       >
-        {/* Geospatial Coordinate Grid Overlay */}
-        <div className="absolute inset-0 bg-geo-grid pointer-events-none opacity-40" />
-
-        {/* Zoom Factor HUD */}
-        <div className="absolute top-3 left-3 z-20 pointer-events-none bg-geo-card/90 border border-geo-border/80 px-2.5 py-1 rounded text-[11px] font-mono text-slate-300 backdrop-blur-sm">
-          Zoom: {(scale * 100).toFixed(0)}%
-        </div>
-
         {/* Loading Spinner */}
         {!imageLoaded && !imageError && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-geo-bg/80 z-10">
-            <div className="w-8 h-8 border-2 border-geo-cyan border-t-transparent rounded-full animate-spin mb-2" />
-            <span className="text-xs font-mono text-slate-400">Loading Orthomosaic Texture...</span>
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-50/80 z-10">
+            <div className="w-6 h-6 border-2 border-slate-400 border-t-slate-800 rounded-full animate-spin mb-2" />
+            <span className="text-xs text-slate-500 font-medium">Loading imagery...</span>
           </div>
         )}
 
         {/* Error Fallback */}
         {imageError && (
-          <div className="text-center p-6 text-slate-400 text-xs">
-            <p className="text-rose-400 font-semibold mb-1">Satellite Texture Not Found</p>
-            <p>Ensure the pipeline completed and generated <code className="text-slate-200">texture.png</code>.</p>
+          <div className="text-center p-6 text-slate-500 text-xs">
+            <p className="font-medium text-slate-700">Unable to load texture.png</p>
           </div>
         )}
 
-        {/* Transform Container */}
+        {/* Zoom Factor */}
+        <div className="absolute bottom-3 left-3 z-20 pointer-events-none bg-white/90 border border-slate-200 px-2 py-0.5 rounded text-[11px] font-mono text-slate-600 shadow-sm">
+          {(scale * 100).toFixed(0)}%
+        </div>
+
+        {/* Image & Overlays */}
         {textureUrl && (
           <div
             style={{
@@ -167,17 +139,16 @@ export default function SatelliteViewer({ jobId, metadata, geojsonData, selected
             }}
             className="relative inline-block max-w-full max-h-full"
           >
-            {/* Satellite Image */}
             <img
               ref={imgRef}
               src={textureUrl}
-              alt="Satellite Orthomosaic"
+              alt="Satellite"
               onLoad={() => setImageLoaded(true)}
               onError={() => setImageError(true)}
-              className="max-h-[480px] w-auto object-contain rounded shadow-2xl pointer-events-none"
+              className="max-h-[460px] w-auto object-contain rounded pointer-events-none"
             />
 
-            {/* SVG Vector Overlays for Objects */}
+            {/* SVG Vectors */}
             {imageLoaded && showOverlays && geojsonData?.features && (
               <svg
                 className="absolute inset-0 w-full h-full pointer-events-none"
@@ -190,28 +161,25 @@ export default function SatelliteViewer({ jobId, metadata, geojsonData, selected
                   const isSelected = selectedObject?.properties?.id === props.id;
                   const cls = props.class || "building";
 
-                  // Colors by object class
-                  let strokeColor = "#38bdf8"; // building (cyan)
-                  let fillColor = "rgba(56, 189, 248, 0.25)";
+                  let strokeColor = "#0284c7"; // sky
+                  let fillColor = "rgba(2, 132, 199, 0.2)";
                   if (cls === "tree") {
-                    strokeColor = "#34d399"; // emerald
-                    fillColor = "rgba(52, 211, 153, 0.4)";
+                    strokeColor = "#059669"; // emerald
+                    fillColor = "rgba(5, 150, 105, 0.3)";
                   } else if (cls === "road") {
-                    strokeColor = "#fbbf24"; // amber
+                    strokeColor = "#d97706"; // amber
                     fillColor = "transparent";
                   }
 
                   if (isSelected) {
-                    strokeColor = "#f43f5e";
-                    fillColor = "rgba(244, 63, 94, 0.45)";
+                    strokeColor = "#e11d48";
+                    fillColor = "rgba(225, 29, 72, 0.35)";
                   }
 
-                  // If geographic coordinates exist and we have bbox
                   if (geom.type === "Polygon" && geom.coordinates?.[0] && isGeoreferenced) {
                     const ring = geom.coordinates[0];
                     const pts = ring.map(([lon, lat]) => {
                       const fx = ((lon - extent.min_x) / (extent.max_x - extent.min_x)) * 100;
-                      // Image coordinates: Y is inverted (top is max_y)
                       const fy = ((extent.max_y - lat) / (extent.max_y - extent.min_y)) * 100;
                       return `${fx.toFixed(2)},${fy.toFixed(2)}`;
                     }).join(" ");
@@ -223,7 +191,7 @@ export default function SatelliteViewer({ jobId, metadata, geojsonData, selected
                         stroke={strokeColor}
                         strokeWidth={isSelected ? "1.2" : "0.7"}
                         fill={fillColor}
-                        className="transition-colors pointer-events-auto cursor-pointer"
+                        className="pointer-events-auto cursor-pointer"
                         onClick={() => onSelectObject?.(feature)}
                       />
                     );
@@ -242,7 +210,7 @@ export default function SatelliteViewer({ jobId, metadata, geojsonData, selected
                         r={isSelected ? "2.5" : "1.5"}
                         fill={strokeColor}
                         stroke="#ffffff"
-                        strokeWidth="0.4"
+                        strokeWidth="0.5"
                         className="cursor-pointer pointer-events-auto"
                         onClick={() => onSelectObject?.(feature)}
                       />
@@ -257,28 +225,12 @@ export default function SatelliteViewer({ jobId, metadata, geojsonData, selected
         )}
       </div>
 
-      {/* Metadata Readout Footer */}
-      <div className="mt-4 pt-3 border-t border-geo-border/60 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono text-slate-400">
-        <div>
-          <span className="text-slate-500 block text-[10px]">RASTER CRS</span>
-          <span className="text-slate-200">{metadata?.crs || "N/A"}</span>
-        </div>
-        <div>
-          <span className="text-slate-500 block text-[10px]">TEXTURE SIZE</span>
-          <span className="text-slate-200">
-            {metadata?.texture?.width || metadata?.width || "N/A"} × {metadata?.texture?.height || metadata?.height || "N/A"} px
-          </span>
-        </div>
-        <div>
-          <span className="text-slate-500 block text-[10px]">OVERLAYS DETECTED</span>
-          <span className="text-geo-cyan">
-            {geojsonData?.features?.length ?? 0} features
-          </span>
-        </div>
-        <div>
-          <span className="text-slate-500 block text-[10px]">INTERACTION</span>
-          <span className="text-slate-300">Drag to Pan • Scroll to Zoom</span>
-        </div>
+      {/* Footer info */}
+      <div className="mt-4 flex items-center justify-between text-xs text-slate-500 font-mono">
+        <span>CRS: {metadata?.crs || "—"}</span>
+        <span>
+          {metadata?.texture?.width || metadata?.width || "—"} × {metadata?.texture?.height || metadata?.height || "—"} px
+        </span>
       </div>
     </div>
   );

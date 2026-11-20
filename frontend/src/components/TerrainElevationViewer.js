@@ -1,15 +1,4 @@
 import React, { useState, useEffect, useRef } from "react";
-import { 
-  Mountain, 
-  MapPin, 
-  Crosshair, 
-  Eye, 
-  Layers, 
-  AlertCircle, 
-  Info, 
-  Sparkles,
-  Palette
-} from "lucide-react";
 import { getFileUrl } from "../lib/api";
 
 export default function TerrainElevationViewer({ jobId, metadata }) {
@@ -18,7 +7,7 @@ export default function TerrainElevationViewer({ jobId, metadata }) {
   const [error, setError] = useState(null);
   const [raw16Data, setRaw16Data] = useState(null);
   const [gridDimensions, setGridDimensions] = useState({ width: 0, height: 0 });
-  const [colorRamp, setColorRamp] = useState("hypsometric"); // 'hypsometric' | 'viridis' | 'cyan' | 'grayscale'
+  const [colorRamp, setColorRamp] = useState("hypsometric");
   const [cursorPos, setCursorPos] = useState(null);
   const [pinnedPoint, setPinnedPoint] = useState(null);
 
@@ -28,7 +17,6 @@ export default function TerrainElevationViewer({ jobId, metadata }) {
   const elevSpan = maxElev - minElev;
   const meanElev = (minElev + maxElev) / 2;
 
-  // Load and decode 16-bit PNG heightmap
   useEffect(() => {
     if (!jobId) return;
 
@@ -40,9 +28,7 @@ export default function TerrainElevationViewer({ jobId, metadata }) {
       try {
         const url = getFileUrl(jobId, "heightmap16.png");
         const res = await fetch(url);
-        if (!res.ok) {
-          throw new Error(`Failed to load heightmap16.png (Status ${res.status})`);
-        }
+        if (!res.ok) throw new Error("Could not load heightmap16.png");
 
         const buffer = await res.arrayBuffer();
         const fastPng = await import("fast-png");
@@ -51,13 +37,11 @@ export default function TerrainElevationViewer({ jobId, metadata }) {
         if (!isMounted) return;
 
         setGridDimensions({ width: decoded.width, height: decoded.height });
-        // decoded.data is a Uint16Array for 16-bit grayscale
         setRaw16Data(decoded.data);
         setLoading(false);
       } catch (err) {
         if (!isMounted) return;
-        console.error("Heightmap decoding error:", err);
-        setError(err.message || "Failed to parse 16-bit heightmap");
+        setError(err.message || "Failed to load elevation matrix");
         setLoading(false);
       }
     };
@@ -69,24 +53,13 @@ export default function TerrainElevationViewer({ jobId, metadata }) {
     };
   }, [jobId]);
 
-  // Colormaps
   const applyColorRamp = (norm) => {
-    // norm is 0.0 to 1.0
     if (colorRamp === "grayscale") {
       const v = Math.round(norm * 255);
       return [v, v, v];
     }
 
-    if (colorRamp === "cyan") {
-      // High-contrast deep navy to bright cyan to white
-      const r = Math.round(norm * norm * 200);
-      const g = Math.round(norm * 240);
-      const b = Math.round(80 + norm * 175);
-      return [r, g, b];
-    }
-
     if (colorRamp === "viridis") {
-      // Viridis-like approximation (purple -> blue -> teal -> yellow)
       if (norm < 0.25) {
         const t = norm / 0.25;
         return [Math.round(68 + t * (49 - 68)), Math.round(1 + t * (104 - 1)), Math.round(84 + t * (142 - 84))];
@@ -102,24 +75,22 @@ export default function TerrainElevationViewer({ jobId, metadata }) {
       }
     }
 
-    // Default: Hypsometric Topographic tint
-    // Deep Green (lowland) -> Yellow-Green -> Ochre/Brown (mid elevation) -> White/Snow (high peaks)
+    // Default: Topographic hypsometric tint (green -> yellow -> brown -> snow)
     if (norm < 0.3) {
       const t = norm / 0.3;
-      return [Math.round(34 + t * 45), Math.round(100 + t * 90), Math.round(50 + t * 20)];
+      return [Math.round(46 + t * 40), Math.round(117 + t * 65), Math.round(89 - t * 20)];
     } else if (norm < 0.6) {
       const t = (norm - 0.3) / 0.3;
-      return [Math.round(79 + t * 130), Math.round(190 + t * 10), Math.round(70 - t * 30)];
+      return [Math.round(86 + t * 130), Math.round(182 - t * 30), Math.round(69 - t * 30)];
     } else if (norm < 0.85) {
       const t = (norm - 0.6) / 0.25;
-      return [Math.round(209 - t * 40), Math.round(140 - t * 40), Math.round(50 + t * 50)];
+      return [Math.round(216 - t * 45), Math.round(152 - t * 60), Math.round(39 + t * 50)];
     } else {
       const t = (norm - 0.85) / 0.15;
-      return [Math.round(169 + t * 86), Math.round(100 + t * 155), Math.round(100 + t * 155)];
+      return [Math.round(171 + t * 75), Math.round(92 + t * 155), Math.round(89 + t * 160)];
     }
   };
 
-  // Render to canvas whenever data or colorRamp changes
   useEffect(() => {
     if (!raw16Data || !gridDimensions.width || !gridDimensions.height) return;
     const canvas = canvasRef.current;
@@ -135,7 +106,7 @@ export default function TerrainElevationViewer({ jobId, metadata }) {
 
     for (let i = 0; i < raw16Data.length; i++) {
       const p16 = raw16Data[i];
-      const norm = p16 / 65535.0; // Normalized 0..1
+      const norm = p16 / 65535.0;
       const [r, g, b] = applyColorRamp(norm);
 
       const offset = i * 4;
@@ -148,8 +119,7 @@ export default function TerrainElevationViewer({ jobId, metadata }) {
     ctx.putImageData(imgData, 0, 0);
   }, [raw16Data, gridDimensions, colorRamp]);
 
-  // Inspect elevation from canvas hover/click
-  const computeElevationAtCoord = (clientX, clientY) => {
+  const computeElevation = (clientX, clientY) => {
     if (!raw16Data || !canvasRef.current) return null;
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
@@ -157,209 +127,108 @@ export default function TerrainElevationViewer({ jobId, metadata }) {
     const scaleX = gridDimensions.width / rect.width;
     const scaleY = gridDimensions.height / rect.height;
 
-    const pixelX = Math.floor((clientX - rect.left) * scaleX);
-    const pixelY = Math.floor((clientY - rect.top) * scaleY);
+    const px = Math.floor((clientX - rect.left) * scaleX);
+    const py = Math.floor((clientY - rect.top) * scaleY);
 
-    if (pixelX < 0 || pixelX >= gridDimensions.width || pixelY < 0 || pixelY >= gridDimensions.height) {
+    if (px < 0 || px >= gridDimensions.width || py < 0 || py >= gridDimensions.height) {
       return null;
     }
 
-    const index = pixelY * gridDimensions.width + pixelX;
-    const rawVal = raw16Data[index];
-
-    // Formula from DepthWizard Specification:
-    // elevation_m = min_elevation_m + (pixel / 65535) * (max_elevation_m - min_elevation_m)
+    const idx = py * gridDimensions.width + px;
+    const rawVal = raw16Data[idx];
     const norm = rawVal / 65535.0;
     const elevationM = minElev + norm * elevSpan;
 
-    // Projected / Geographic coordinates if extent is known
-    let geoX = null;
-    let geoY = null;
-    if (metadata?.extent) {
-      const { min_x, max_x, min_y, max_y } = metadata.extent;
-      geoX = min_x + (pixelX / gridDimensions.width) * (max_x - min_x);
-      geoY = max_y - (pixelY / gridDimensions.height) * (max_y - min_y);
-    }
-
-    return {
-      pixelX,
-      pixelY,
-      rawVal,
-      elevationM,
-      geoX,
-      geoY,
-      percentElevation: (norm * 100).toFixed(1),
-    };
+    return { px, py, elevationM };
   };
 
-  const handleMouseMove = (e) => {
-    const data = computeElevationAtCoord(e.clientX, e.clientY);
-    setCursorPos(data);
-  };
-
-  const handleClick = (e) => {
-    const data = computeElevationAtCoord(e.clientX, e.clientY);
-    if (data) {
-      setPinnedPoint(data);
-    }
-  };
-
-  const activeInspection = pinnedPoint || cursorPos;
+  const active = pinnedPoint || cursorPos;
 
   return (
-    <div className="bg-geo-card border border-geo-border rounded-xl p-5 shadow-xl flex flex-col h-full">
-      {/* Header and Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-geo-border gap-3">
+    <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-subtle flex flex-col h-full">
+      {/* Header */}
+      <div className="flex items-center justify-between pb-4 border-b border-slate-100">
         <div>
-          <div className="flex items-center space-x-2">
-            <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wider flex items-center space-x-2">
-              <Mountain className="w-4 h-4 text-emerald-400" />
-              <span>Terrain Elevation Model (DTM)</span>
-            </h3>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-800 text-emerald-300">
-              16-Bit Bare Ground DEM
-            </span>
-          </div>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Calibrated bare-ground elevation grid derived from OpenTopography GEDTM30
+          <h3 className="text-sm font-semibold text-slate-900 tracking-tight">
+            Terrain Elevation (DEM)
+          </h3>
+          <p className="text-xs text-slate-500 mt-0.5">
+            16-bit bare-ground Digital Terrain Model
           </p>
         </div>
 
-        {/* Colormap Selector */}
-        <div className="flex items-center space-x-2">
-          <Palette className="w-3.5 h-3.5 text-slate-400" />
-          <span className="text-xs text-slate-400 font-mono">Palette:</span>
-          <select
-            value={colorRamp}
-            onChange={(e) => setColorRamp(e.target.value)}
-            className="text-xs font-mono bg-geo-surface border border-geo-border text-slate-200 rounded px-2.5 py-1 focus:border-geo-cyan focus:outline-none"
-          >
-            <option value="hypsometric">Hypsometric Tint (Topo)</option>
-            <option value="viridis">Viridis (Scientific)</option>
-            <option value="cyan">Cyber Cyan (Radar HUD)</option>
-            <option value="grayscale">Grayscale (16-bit Raw)</option>
-          </select>
-        </div>
+        <select
+          value={colorRamp}
+          onChange={(e) => setColorRamp(e.target.value)}
+          className="text-xs font-medium bg-slate-50 border border-slate-200 text-slate-700 rounded-lg px-2.5 py-1 focus:outline-none"
+        >
+          <option value="hypsometric">Topographic</option>
+          <option value="viridis">Viridis</option>
+          <option value="grayscale">Grayscale</option>
+        </select>
       </div>
 
-      {/* Interactive Elevation Canvas Container */}
-      <div className="relative flex-1 min-h-[440px] max-h-[560px] bg-geo-bg border border-geo-border/80 rounded-lg mt-4 overflow-hidden flex items-center justify-center">
-        {/* Background Grid */}
-        <div className="absolute inset-0 bg-geo-grid pointer-events-none opacity-40" />
-
-        {/* Loading Spinner */}
+      {/* Canvas */}
+      <div className="relative flex-1 min-h-[400px] max-h-[520px] bg-slate-50 border border-slate-200 rounded-xl mt-4 overflow-hidden flex items-center justify-center">
         {loading && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-geo-bg/80 z-20">
-            <div className="w-8 h-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin mb-2" />
-            <span className="text-xs font-mono text-slate-400">
-              Decoding 16-Bit High-Precision Elevation Matrix...
-            </span>
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-50/80 z-10">
+            <div className="w-6 h-6 border-2 border-slate-400 border-t-slate-800 rounded-full animate-spin mb-2" />
+            <span className="text-xs text-slate-500 font-medium">Decoding elevation grid...</span>
           </div>
         )}
 
-        {/* Error State */}
         {error && (
-          <div className="text-center p-6 text-slate-400 text-xs z-20">
-            <p className="text-rose-400 font-semibold mb-1">Failed to load elevation data</p>
-            <p className="font-mono">{error}</p>
+          <div className="text-center p-6 text-slate-500 text-xs">
+            <p className="font-medium text-slate-700">Elevation unavailable</p>
           </div>
         )}
 
-        {/* Canvas Display */}
         <canvas
           ref={canvasRef}
-          onMouseMove={handleMouseMove}
+          onMouseMove={(e) => setCursorPos(computeElevation(e.clientX, e.clientY))}
           onMouseLeave={() => setCursorPos(null)}
-          onClick={handleClick}
-          className="max-h-[480px] w-auto object-contain rounded shadow-2xl cursor-crosshair transition-transform"
+          onClick={(e) => {
+            const data = computeElevation(e.clientX, e.clientY);
+            if (data) setPinnedPoint(data);
+          }}
+          className="max-h-[460px] w-auto object-contain rounded cursor-crosshair"
         />
 
-        {/* Live Elevation Inspector HUD Card (Floating) */}
-        {activeInspection && (
-          <div className="absolute bottom-4 left-4 z-20 bg-geo-card/95 border border-emerald-500/50 backdrop-blur-md rounded-lg p-3.5 shadow-2xl text-xs font-mono min-w-[240px]">
-            <div className="flex items-center justify-between border-b border-geo-border/60 pb-1.5 mb-2">
-              <span className="text-[10px] uppercase font-bold text-emerald-400 flex items-center space-x-1">
-                <Crosshair className="w-3.5 h-3.5" />
-                <span>{pinnedPoint ? "Pinned Point" : "Live Cursor"}</span>
-              </span>
-              {pinnedPoint && (
-                <button
-                  onClick={() => setPinnedPoint(null)}
-                  className="text-[10px] text-slate-400 hover:text-white"
-                >
-                  Unpin
-                </button>
-              )}
-            </div>
-
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Ground Elevation:</span>
-                <span className="text-sm font-bold text-white text-emerald-300">
-                  {activeInspection.elevationM.toFixed(2)} m
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-slate-400 text-[11px]">
-                <span>Pixel Position:</span>
-                <span className="text-slate-200">
-                  X:{activeInspection.pixelX}, Y:{activeInspection.pixelY}
-                </span>
-              </div>
-              {activeInspection.geoX !== null && (
-                <div className="flex items-center justify-between text-slate-400 text-[10px]">
-                  <span>Coord:</span>
-                  <span className="text-slate-300">
-                    {activeInspection.geoX.toFixed(4)}, {activeInspection.geoY.toFixed(4)}
-                  </span>
-                </div>
-              )}
-              <div className="flex items-center justify-between text-slate-400 text-[10px]">
-                <span>Raw 16-bit Int:</span>
-                <span className="text-slate-400">
-                  {activeInspection.rawVal} / 65535
-                </span>
-              </div>
-            </div>
+        {/* Live Elevation Readout Pill */}
+        {active && (
+          <div className="absolute bottom-3 left-3 z-20 bg-white/95 border border-slate-200/90 shadow-sm rounded-lg px-3 py-1.5 text-xs font-mono text-slate-700 flex items-center space-x-3">
+            <span>
+              Ground: <strong className="text-slate-900">{active.elevationM.toFixed(1)} m</strong>
+            </span>
+            <span className="text-slate-400">
+              ({active.px}, {active.py})
+            </span>
+            {pinnedPoint && (
+              <button
+                onClick={() => setPinnedPoint(null)}
+                className="text-[10px] text-slate-400 hover:text-slate-600 underline font-sans"
+              >
+                Clear
+              </button>
+            )}
           </div>
         )}
 
-        {/* Color Gradient Scale Bar (Top Right) */}
-        <div className="absolute top-4 right-4 z-20 bg-geo-card/90 border border-geo-border/80 px-3 py-2 rounded-lg backdrop-blur-md text-[10px] font-mono text-slate-300 flex items-center space-x-3">
-          <span>{minElev.toFixed(0)} m</span>
-          <div className="w-24 h-2.5 rounded bg-gradient-to-r from-emerald-600 via-yellow-400 to-rose-400" />
-          <span>{maxElev.toFixed(0)} m</span>
+        {/* Minimal Scale Legend */}
+        <div className="absolute top-3 right-3 z-20 bg-white/90 border border-slate-200/80 px-2.5 py-1 rounded text-[10px] font-mono text-slate-600 shadow-sm flex items-center space-x-2">
+          <span>{minElev.toFixed(0)}m</span>
+          <div className="w-16 h-2 rounded bg-gradient-to-r from-emerald-600 via-amber-400 to-rose-400" />
+          <span>{maxElev.toFixed(0)}m</span>
         </div>
       </div>
 
-      {/* Elevation Statistics & Spatial Integrity Cards */}
-      <div className="mt-4 pt-3 border-t border-geo-border/60 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono text-slate-400">
-        <div>
-          <span className="text-slate-500 block text-[10px]">ELEVATION RANGE</span>
-          <span className="text-emerald-400 font-semibold">
-            {minElev.toFixed(1)} m → {maxElev.toFixed(1)} m
-          </span>
-        </div>
-        <div>
-          <span className="text-slate-500 block text-[10px]">MEAN ELEVATION</span>
-          <span className="text-slate-200">{meanElev.toFixed(1)} m</span>
-        </div>
-        <div>
-          <span className="text-slate-500 block text-[10px]">NODATA PIXELS</span>
-          <span className="text-slate-200">0 (Interpolated)</span>
-        </div>
-        <div>
-          <span className="text-slate-500 block text-[10px]">VERTICAL REFERENCE</span>
-          <span className="text-amber-400/90">{terrain.vertical_reference || "Metres (GEDTM30)"}</span>
-        </div>
+      {/* Footer */}
+      <div className="mt-4 flex items-center justify-between text-xs text-slate-500 font-mono">
+        <span>Range: {minElev.toFixed(1)} m – {maxElev.toFixed(1)} m</span>
+        <span>Mean: {meanElev.toFixed(1)} m</span>
       </div>
-
-      {/* Bare Ground Elevation Notice */}
-      <div className="mt-3 text-[11px] text-slate-400 bg-geo-surface/40 p-2.5 rounded border border-geo-border/50 flex items-start space-x-2">
-        <Info className="w-4 h-4 text-geo-cyan shrink-0 mt-0.5" />
-        <div>
-          <span className="text-slate-200 font-semibold">Important Elevation Specification: </span>
-          The DEM represents <span className="text-geo-cyan font-semibold">bare-ground elevation</span> only. It does not measure building roofs or tree tops. Building heights are estimated independently by Part A and added to the terrain base.
-        </div>
+      <div className="mt-1 text-[11px] text-slate-400 italic">
+        DEM represents bare ground elevation; does not include structures or trees.
       </div>
     </div>
   );

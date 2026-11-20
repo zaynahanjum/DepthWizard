@@ -7,28 +7,30 @@ export default function DepthWizardApp({ Component, pageProps }) {
   return (
     <>
       <Head>
-        <title>DepthWizard – Calibrating AI Depth Models with Real-World Geographic Constraints</title>
+        <title>DepthWizard – Satellite Elevation & 3D Terrain Analysis</title>
         <meta
           name="description"
-          content="Geospatial Intelligence Platform: Single-view satellite RGB image to metric elevation map (DEM) and interactive 3D terrain."
+          content="Geospatial terrain elevation and 3D object height estimation from satellite imagery."
         />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <div className="min-h-screen bg-geo-bg text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-black">
+      <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans selection:bg-slate-900 selection:text-white">
         <Navbar />
         <main className="flex-1 pb-16">
           <Component {...pageProps} />
         </main>
 
-        <footer className="border-t border-geo-border py-6 bg-geo-bg text-xs font-mono text-slate-500">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div>
-              <span className="text-slate-400 font-bold">DepthWizard</span> • Department of Computer Science and Engineering, Sahyadri College of Engineering and Management
+        <footer className="border-t border-slate-200 py-6 bg-white text-xs text-slate-400">
+          <div className="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center space-x-2">
+              <span className="font-semibold text-slate-700">DepthWizard</span>
+              <span>•</span>
+              <span>Satellite & Aerial Elevation Intelligence</span>
             </div>
-            <div>
-              Guide: <span className="text-slate-300">Dr. Joyline Dsa</span> • Team: Siddu, Kaneez, Zaynah, Jenisha
+            <div className="text-slate-400">
+              Sahyadri CSE Research • Dr. Joyline Dsa
             </div>
           </div>
         </footer>

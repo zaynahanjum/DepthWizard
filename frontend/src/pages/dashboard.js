@@ -1,22 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
-import { 
-  Compass, 
-  Layers, 
-  Satellite, 
-  Mountain, 
-  Box, 
-  TrendingUp, 
-  Download, 
-  ArrowLeft, 
-  RefreshCw, 
-  AlertCircle, 
-  CheckCircle2, 
-  ExternalLink,
-  Info,
-  Sparkles
-} from "lucide-react";
+import { ArrowLeft, AlertCircle, RefreshCw, Plus } from "lucide-react";
 
 import SummaryCards from "../components/SummaryCards";
 import SatelliteViewer from "../components/SatelliteViewer";
@@ -28,7 +13,6 @@ import FlythroughEmbed from "../components/FlythroughEmbed";
 
 import { 
   getJobResult, 
-  getJobStatus, 
   fetchGeoJson, 
   fetchSceneJson, 
   listRecentJobs 
@@ -56,7 +40,6 @@ export default function DashboardPage() {
       setRecentJobs(jobs);
 
       if (!jobQuery && jobs.length > 0) {
-        // Auto-select the first available job if no query param provided
         setActiveJobId(jobs[0].job_id);
       }
     };
@@ -86,12 +69,10 @@ export default function DashboardPage() {
 
     const loadAllJobData = async () => {
       try {
-        // 1. Fetch metadata.json from GET /result/{job_id}
         const meta = await getJobResult(activeJobId);
         if (!isMounted) return;
         setMetadata(meta);
 
-        // 2. Fetch objects.geojson from GET /files/{job_id}/objects.geojson
         try {
           const geojson = await fetchGeoJson(activeJobId, "objects.geojson");
           if (isMounted) setGeojsonData(geojson);
@@ -99,7 +80,6 @@ export default function DashboardPage() {
           console.warn("Could not load objects.geojson:", e);
         }
 
-        // 3. Fetch objects_scene.json if available
         try {
           const scene = await fetchSceneJson(activeJobId);
           if (isMounted) setSceneData(scene);
@@ -129,40 +109,39 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-8">
-      {/* Top Header / Breadcrumbs & Job Switcher */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between pb-6 border-b border-geo-border gap-4">
+    <div className="max-w-6xl mx-auto px-6 pt-8 space-y-8">
+      {/* Header & Controls */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-slate-200 gap-4">
         <div>
-          <div className="flex items-center space-x-2 text-xs font-mono text-slate-400 mb-1">
-            <Link href="/" className="hover:text-geo-cyan flex items-center space-x-1">
+          <div className="flex items-center space-x-2 text-xs text-slate-400 mb-1">
+            <Link href="/" className="hover:text-slate-700 flex items-center space-x-1 transition-colors">
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back to Upload</span>
+              <span>Upload</span>
             </Link>
             <span>/</span>
-            <span className="text-slate-200">Results Dashboard</span>
+            <span className="text-slate-600 font-medium">Dashboard</span>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center space-x-3">
-            <span>Geospatial Analysis Dashboard</span>
+          <div className="flex items-center space-x-3">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+              Elevation & Object Analysis
+            </h1>
             {activeJobId && (
-              <span className="text-xs font-mono px-2.5 py-1 rounded bg-cyan-950/80 border border-cyan-800 text-cyan-300 font-normal">
-                Job: {activeJobId}
+              <span className="text-xs font-mono px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 font-medium border border-slate-200">
+                {activeJobId}
               </span>
             )}
-          </h1>
+          </div>
         </div>
 
-        {/* Job Selector Dropdown */}
+        {/* Job Switcher & New Upload Button */}
         <div className="flex items-center space-x-3">
           {recentJobs.length > 0 && (
             <div className="flex items-center space-x-2">
-              <span className="text-xs font-mono text-slate-400 hidden sm:inline">
-                Select Job:
-              </span>
               <select
                 value={activeJobId || ""}
                 onChange={(e) => handleJobSelect(e.target.value)}
-                className="bg-geo-card border border-geo-border text-xs font-mono text-slate-200 rounded-lg px-3 py-2 focus:border-geo-cyan focus:outline-none"
+                className="bg-white border border-slate-200 text-xs font-mono text-slate-700 rounded-lg px-3 py-1.5 focus:border-slate-400 focus:outline-none shadow-2xs"
               >
                 {recentJobs.map((j) => (
                   <option key={j.job_id} value={j.job_id}>
@@ -175,53 +154,54 @@ export default function DashboardPage() {
 
           <Link
             href="/"
-            className="px-4 py-2 rounded-lg bg-geo-surface hover:bg-slate-800 border border-geo-border text-xs font-mono text-slate-300 hover:text-white transition-all"
+            className="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium transition-colors inline-flex items-center space-x-1.5"
           >
-            + Process New Image
+            <Plus className="w-3.5 h-3.5" />
+            <span>New Run</span>
           </Link>
         </div>
       </div>
 
       {/* Loading State */}
       {loading && (
-        <div className="bg-geo-card border border-geo-border rounded-xl p-16 text-center shadow-xl">
-          <div className="w-10 h-10 border-2 border-geo-cyan border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <h3 className="text-base font-bold text-slate-200">
-            Loading Geospatial Output Assets...
+        <div className="bg-white border border-slate-200 rounded-2xl p-16 text-center shadow-sm">
+          <div className="w-8 h-8 border-2 border-slate-900 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <h3 className="text-sm font-semibold text-slate-800">
+            Loading Elevation Assets...
           </h3>
           <p className="text-xs text-slate-400 font-mono mt-1">
-            Retrieving DEM raster, GeoJSON features, and calibrated elevation metadata.
+            Retrieving GeoTIFF raster, DEM matrix, and detected objects.
           </p>
         </div>
       )}
 
-      {/* Error / Empty State */}
+      {/* Error or Empty State */}
       {!loading && (error || !activeJobId) && (
-        <div className="bg-geo-card border border-geo-border rounded-xl p-12 text-center shadow-xl space-y-4">
-          <AlertCircle className="w-10 h-10 text-amber-400 mx-auto" />
+        <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-sm space-y-4">
+          <AlertCircle className="w-8 h-8 text-slate-400 mx-auto" />
           <div>
-            <h3 className="text-base font-bold text-slate-200">
-              {error ? "Failed to Load Job Results" : "No Job Selected"}
+            <h3 className="text-base font-semibold text-slate-900">
+              {error ? "Unable to Load Job Results" : "No Dataset Selected"}
             </h3>
-            <p className="text-xs text-slate-400 max-w-md mx-auto mt-1 font-mono">
-              {error || "Upload a georeferenced satellite image to generate your first elevation and 3D object dataset."}
+            <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1 font-mono">
+              {error || "Upload a georeferenced satellite image to begin processing."}
             </p>
           </div>
           <div>
             <Link
               href="/"
-              className="inline-flex items-center space-x-2 px-6 py-2.5 rounded-lg bg-gradient-to-r from-cyan-500 to-teal-400 text-slate-950 font-bold text-xs font-mono shadow-geo-glow"
+              className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-lg bg-slate-900 text-white text-xs font-medium hover:bg-slate-800 transition-colors"
             >
-              <span>Go to Image Upload</span>
+              <span>Upload Image</span>
             </Link>
           </div>
         </div>
       )}
 
-      {/* Main Dashboard Content (Displayed when metadata is loaded) */}
+      {/* Main Content */}
       {!loading && metadata && activeJobId && (
         <>
-          {/* SECTION A: Overview Summary Cards */}
+          {/* Summary Metric Cards */}
           <section>
             <SummaryCards
               metadata={metadata}
@@ -230,9 +210,8 @@ export default function DashboardPage() {
             />
           </section>
 
-          {/* SECTION B & C: Parallel Satellite Orthomosaic Viewer & Terrain Elevation DEM Viewer */}
+          {/* Viewers: Orthomosaic & Terrain Elevation */}
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-            {/* Satellite Image Viewer */}
             <div className="h-full">
               <SatelliteViewer
                 jobId={activeJobId}
@@ -243,7 +222,6 @@ export default function DashboardPage() {
               />
             </div>
 
-            {/* Terrain Elevation DEM Viewer */}
             <div className="h-full">
               <TerrainElevationViewer
                 jobId={activeJobId}
@@ -252,7 +230,12 @@ export default function DashboardPage() {
             </div>
           </section>
 
-          {/* SECTION D: Object Detection & Geometry Catalog */}
+          {/* 3D Flythrough */}
+          <section>
+            <FlythroughEmbed jobId={activeJobId} />
+          </section>
+
+          {/* Object Catalog */}
           <section>
             <ObjectDetectionTable
               geojsonData={geojsonData}
@@ -263,7 +246,7 @@ export default function DashboardPage() {
             />
           </section>
 
-          {/* SECTION E: Height Analysis Breakdown */}
+          {/* Height Calibration Breakdown */}
           <section>
             <HeightAnalysisCard
               geojsonData={geojsonData}
@@ -272,12 +255,7 @@ export default function DashboardPage() {
             />
           </section>
 
-          {/* SECTION F: 3D Flythrough Integration */}
-          <section>
-            <FlythroughEmbed jobId={activeJobId} />
-          </section>
-
-          {/* SECTION G: Downloads and Output Artifacts */}
+          {/* Exports / Downloads */}
           <section>
             <DownloadSection jobId={activeJobId} />
           </section>

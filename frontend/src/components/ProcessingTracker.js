@@ -1,27 +1,12 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { 
-  CheckCircle2, 
-  Clock, 
-  AlertCircle, 
-  ArrowRight, 
-  Compass, 
-  Copy, 
-  Check, 
-  RotateCw,
-  Layers,
-  Satellite,
-  Mountain,
-  MapPin
-} from "lucide-react";
+import { Check, Copy, ArrowRight, Loader2, AlertCircle } from "lucide-react";
 import { getJobStatus, getJobResult } from "../lib/api";
 
 export default function ProcessingTracker({ jobId, onReset }) {
-  const [jobStatus, setJobStatus] = useState("queued"); // 'queued' | 'running' | 'done' | 'failed'
-  const [errorMessage, setErrorMessage] = useState(null);
-  const [resultMetadata, setResultMetadata] = useState(null);
-  const [copiedId, setCopiedId] = useState(false);
-  const [pollCount, setPollCount] = useState(0);
+  const [jobStatus, setJobStatus] = useState("queued");
+  const [error, setError] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!jobId) return;
@@ -29,39 +14,31 @@ export default function ProcessingTracker({ jobId, onReset }) {
     let isMounted = true;
     let pollTimeout;
 
-    const checkStatus = async () => {
+    const poll = async () => {
       try {
         const data = await getJobStatus(jobId);
         if (!isMounted) return;
 
         setJobStatus(data.status);
-        setPollCount((prev) => prev + 1);
 
         if (data.status === "failed") {
-          setErrorMessage(data.error || "An unknown error occurred during pipeline processing.");
+          setError(data.error || "Processing failed.");
           return;
         }
 
         if (data.status === "done") {
-          try {
-            const meta = await getJobResult(jobId);
-            if (isMounted) setResultMetadata(meta);
-          } catch (e) {
-            console.error("Could not fetch metadata upon completion", e);
-          }
           return;
         }
 
-        // Still queued or running; poll again
-        pollTimeout = setTimeout(checkStatus, 1800);
+        pollTimeout = setTimeout(poll, 1500);
       } catch (err) {
         if (!isMounted) return;
-        setErrorMessage(err.message || "Failed to reach backend status endpoint.");
-        pollTimeout = setTimeout(checkStatus, 3000);
+        setError(err.message || "Unable to check status.");
+        pollTimeout = setTimeout(poll, 2500);
       }
     };
 
-    checkStatus();
+    poll();
 
     return () => {
       isMounted = false;
@@ -71,203 +48,107 @@ export default function ProcessingTracker({ jobId, onReset }) {
 
   const copyJobId = () => {
     navigator.clipboard.writeText(jobId);
-    setCopiedId(true);
-    setTimeout(() => setCopiedId(false), 2000);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
-  // Pipeline stages mapped to actual backend state
-  const stages = [
-    {
-      id: "upload",
-      title: "Image Uploaded",
-      desc: "GeoTIFF ingested, bounding box extracted & CRS registered",
-      isComplete: true,
-      isActive: false,
-    },
-    {
-      id: "path_a",
-      title: "Object Prediction (Part A)",
-      desc: "Detecting building footprints, trees, and relative heights",
-      isComplete: jobStatus === "done",
-      isActive: jobStatus === "running",
-    },
-    {
-      id: "path_b",
-      title: "Terrain Data Fetching & Alignment (Part B)",
-      desc: "GEDTM30 bare-ground DEM retrieved & resampled to match grid",
-      isComplete: jobStatus === "done",
-      isActive: jobStatus === "running",
-    },
-    {
-      id: "combine",
-      title: "Spatial Combination & Elevation Fusion",
-      desc: "Top Elevation = Ground Elevation + Object Height Above Ground",
-      isComplete: jobStatus === "done",
-      isActive: jobStatus === "running",
-    },
-    {
-      id: "done",
-      title: "Processing Completed",
-      desc: "Terrain DEM, GeoJSON, heightmaps and metadata generated",
-      isComplete: jobStatus === "done",
-      isActive: false,
-    },
+  const steps = [
+    { title: "Image ingestion & metadata extraction", done: true },
+    { title: "Object detection & height estimation (Part A)", done: jobStatus === "done", active: jobStatus === "running" },
+    { title: "GEDTM30 terrain retrieval & alignment (Part B)", done: jobStatus === "done", active: jobStatus === "running" },
+    { title: "Spatial fusion & 3D scene export", done: jobStatus === "done", active: jobStatus === "running" },
   ];
 
   return (
-    <div className="bg-geo-card border border-geo-border rounded-xl p-6 sm:p-8 shadow-2xl relative">
-      {/* Header with Job ID badge */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-geo-border/60 gap-4">
+    <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between pb-5 border-b border-slate-100">
         <div>
-          <span className="text-xs font-mono uppercase tracking-wider text-geo-cyan">
-            Active Processing Pipeline
-          </span>
-          <h3 className="text-lg font-bold text-slate-100 flex items-center space-x-2 mt-0.5">
-            <span>Job Monitor:</span>
-            <span className="font-mono text-cyan-300 font-normal">{jobId}</span>
-          </h3>
-        </div>
-
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={copyJobId}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-geo-surface border border-geo-border text-xs font-mono text-slate-300 hover:text-white hover:border-geo-border-light transition-all"
-            title="Copy Job ID to clipboard"
-          >
-            {copiedId ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="text-emerald-400">Copied</span>
-              </>
-            ) : (
-              <>
-                <Copy className="w-3.5 h-3.5 text-slate-400" />
-                <span>Copy ID</span>
-              </>
-            )}
-          </button>
-
-          {/* Status Badge */}
-          <div
-            className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-mono font-semibold border ${
-              jobStatus === "done"
-                ? "bg-emerald-950/60 border-emerald-500/50 text-emerald-300"
-                : jobStatus === "failed"
-                ? "bg-rose-950/60 border-rose-500/50 text-rose-300"
-                : "bg-cyan-950/60 border-cyan-500/50 text-cyan-300"
-            }`}
-          >
-            {jobStatus === "running" && (
-              <RotateCw className="w-3.5 h-3.5 animate-spin text-geo-cyan" />
-            )}
-            {jobStatus === "queued" && (
-              <Clock className="w-3.5 h-3.5 text-amber-400" />
-            )}
-            {jobStatus === "done" && (
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-            )}
-            {jobStatus === "failed" && (
-              <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
-            )}
-            <span className="uppercase">{jobStatus}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Actual Backend State Stages */}
-      <div className="py-6 space-y-4">
-        {stages.map((stage, idx) => {
-          let indicatorBg = "bg-slate-800 border-slate-700 text-slate-500";
-          if (stage.isComplete) {
-            indicatorBg = "bg-emerald-500/20 border-emerald-500/50 text-emerald-400";
-          } else if (stage.isActive) {
-            indicatorBg = "bg-cyan-500/20 border-cyan-400 text-cyan-300 animate-pulse";
-          }
-
-          return (
-            <div
-              key={stage.id}
-              className={`flex items-start space-x-4 p-3.5 rounded-lg border transition-all ${
-                stage.isActive
-                  ? "bg-cyan-950/20 border-cyan-500/30 shadow-geo-glow"
-                  : stage.isComplete
-                  ? "bg-geo-surface/30 border-geo-border/40"
-                  : "bg-geo-surface/10 border-geo-border/20 opacity-60"
-              }`}
-            >
-              <div
-                className={`w-7 h-7 rounded-full border flex items-center justify-center text-xs font-mono shrink-0 mt-0.5 ${indicatorBg}`}
-              >
-                {stage.isComplete ? (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                ) : stage.isActive ? (
-                  <RotateCw className="w-3.5 h-3.5 animate-spin text-cyan-300" />
-                ) : (
-                  idx + 1
-                )}
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-medium text-slate-200">
-                    {stage.title}
-                  </h4>
-                  <span className="text-[11px] font-mono text-slate-400">
-                    {stage.isComplete ? "Done" : stage.isActive ? "Processing..." : "Pending"}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-400 mt-0.5">{stage.desc}</p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Failure State Notice */}
-      {jobStatus === "failed" && (
-        <div className="p-4 rounded-lg bg-rose-950/40 border border-rose-800 text-rose-200 text-xs space-y-2 mt-2">
-          <div className="flex items-center space-x-2 font-semibold text-rose-300">
-            <AlertCircle className="w-4 h-4 text-rose-400" />
-            <span>Pipeline Execution Failed</span>
-          </div>
-          <p className="font-mono text-[11px] bg-rose-950/80 p-2.5 rounded border border-rose-900/60 overflow-x-auto">
-            {errorMessage || "Check backend console logs for details."}
-          </p>
-          <div className="pt-2">
+          <span className="text-xs text-slate-400 uppercase tracking-wider font-medium">Job Processing</span>
+          <div className="flex items-center space-x-2 mt-1">
+            <h3 className="text-base font-semibold text-slate-900 font-mono">{jobId}</h3>
             <button
-              onClick={onReset}
-              className="px-4 py-2 rounded bg-rose-900/40 border border-rose-700 hover:bg-rose-900/60 text-xs font-medium text-rose-100 transition-all"
+              onClick={copyJobId}
+              className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+              title="Copy ID"
             >
-              Start New Upload
+              {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
             </button>
           </div>
+        </div>
+
+        {/* Status Pill */}
+        <span
+          className={`text-xs font-medium px-3 py-1 rounded-full uppercase tracking-wider ${
+            jobStatus === "done"
+              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+              : jobStatus === "failed"
+              ? "bg-rose-50 text-rose-700 border border-rose-200"
+              : "bg-blue-50 text-blue-700 border border-blue-200"
+          }`}
+        >
+          {jobStatus}
+        </span>
+      </div>
+
+      {/* Steps List */}
+      <div className="space-y-3.5 py-2">
+        {steps.map((step, i) => (
+          <div key={i} className="flex items-center space-x-3 text-sm">
+            {step.done ? (
+              <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                <Check className="w-3 h-3 stroke-[3]" />
+              </div>
+            ) : step.active ? (
+              <div className="w-5 h-5 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                <Loader2 className="w-3 h-3 animate-spin" />
+              </div>
+            ) : (
+              <div className="w-5 h-5 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-xs shrink-0 font-medium">
+                {i + 1}
+              </div>
+            )}
+            <span className={step.done ? "text-slate-800" : step.active ? "text-blue-600 font-medium" : "text-slate-400"}>
+              {step.title}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Error */}
+      {jobStatus === "failed" && (
+        <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 space-y-2">
+          <div className="flex items-center space-x-2 font-medium">
+            <AlertCircle className="w-4 h-4 text-rose-600" />
+            <span>Processing failed</span>
+          </div>
+          <p className="font-mono text-slate-700">{error}</p>
+          <button
+            onClick={onReset}
+            className="mt-2 text-xs font-medium text-rose-700 underline"
+          >
+            Start over
+          </button>
         </div>
       )}
 
-      {/* Completion CTA */}
+      {/* Done CTA */}
       {jobStatus === "done" && (
-        <div className="mt-6 pt-6 border-t border-geo-border/60 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="text-xs text-slate-300">
-            <span className="text-emerald-400 font-semibold">Ready: </span>
-            Terrain DEM aligned, object geometries detected, and 3D scene built.
-          </div>
+        <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+          <button
+            onClick={onReset}
+            className="text-xs font-medium text-slate-500 hover:text-slate-900"
+          >
+            Process another image
+          </button>
 
-          <div className="flex items-center space-x-3 w-full sm:w-auto">
-            <button
-              onClick={onReset}
-              className="px-4 py-2.5 rounded-lg border border-geo-border text-xs font-mono text-slate-300 hover:bg-geo-surface transition-all"
-            >
-              New Job
-            </button>
-
-            <Link
-              href={`/dashboard?job=${jobId}`}
-              className="flex-1 sm:flex-initial py-2.5 px-6 rounded-lg bg-gradient-to-r from-cyan-500 to-teal-400 hover:from-cyan-400 hover:to-teal-300 text-slate-950 text-xs font-bold font-mono tracking-wide flex items-center justify-center space-x-2 shadow-geo-glow transition-all"
-            >
-              <span>OPEN RESULTS DASHBOARD</span>
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
+          <Link
+            href={`/dashboard?job=${jobId}`}
+            className="inline-flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-sm font-medium transition-colors shadow-sm"
+          >
+            <span>Open Dashboard</span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
         </div>
       )}
     </div>

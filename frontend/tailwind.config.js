@@ -5,31 +5,30 @@ module.exports = {
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
-  darkMode: 'class',
   theme: {
     extend: {
-      colors: {
-        geo: {
-          bg: "#080c14",
-          card: "#0d1424",
-          "card-hover": "#131e36",
-          surface: "#111a2e",
-          border: "#1c2a4a",
-          "border-light": "#273b66",
-          cyan: "#00d2ff",
-          teal: "#00f2c3",
-          accent: "#38bdf8",
-          muted: "#8899b5",
-        },
-      },
       fontFamily: {
-        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
-        sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        sans: [
+          'Inter',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          'Segoe UI',
+          'Roboto',
+          'sans-serif',
+        ],
+        mono: [
+          'ui-monospace',
+          'SFMono-Regular',
+          'Menlo',
+          'Monaco',
+          'Consolas',
+          'monospace',
+        ],
       },
       boxShadow: {
-        'geo-glow': '0 0 25px -5px rgba(0, 210, 255, 0.15)',
-        'geo-glow-teal': '0 0 25px -5px rgba(0, 242, 195, 0.15)',
-      }
+        'subtle': '0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03)',
+        'premium': '0 4px 20px -2px rgba(0, 0, 0, 0.06)',
+      },
     },
   },
   plugins: [],
