@@ -10,6 +10,8 @@ unity/Logs/
 unity/obj/
 unity/Builds/
 node_modules/
+.next/
+.env*.local
 *.tif
 *.tiff
 *.TIF
