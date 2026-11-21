@@ -1,0 +1,22 @@
+{
+  "name": "depthwizard-flythrough",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Three.js 3D terrain flythrough for DepthWizard",
+  "scripts": {
+    "demo": "node scripts/make-demo.mjs",
+    "predev": "node scripts/make-demo.mjs --if-missing",
+    "dev": "vite",
+    "prebuild": "node scripts/make-demo.mjs --if-missing",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "fast-png": "^8.0.0",
+    "three": "^0.187.0"
+  },
+  "devDependencies": {
+    "vite": "^8.3.8"
+  }
+}

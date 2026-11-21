@@ -1,1 +1,3 @@
-# requirements.txt
+rasterio
+numpy
+matplotlib
